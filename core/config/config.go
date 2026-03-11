@@ -23,12 +23,12 @@ type Config struct {
 func Load(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, errors.Wrap("read config", err)
+		return nil, errors.Wrap("read file", err)
 	}
 
 	var config Config
 	if err := yaml.Unmarshal(data, &config); err != nil {
-		return nil, errors.Wrap("unmarshal config", err)
+		return nil, errors.Wrap("parse file", err)
 	}
 
 	if config.Server.Port == 0 {

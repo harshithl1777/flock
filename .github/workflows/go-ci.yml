@@ -23,7 +23,7 @@ jobs:
             - name: Run tests
               run: go test ./...
     format-and-lint:
-        name: Format and Lint
+        name: Format & Lint
         runs-on: ubuntu-latest
 
         steps:

@@ -1,0 +1,50 @@
+name: Go CI
+
+permissions:
+    contents: read
+
+on:
+    push:
+        branches:
+            - main
+    pull_request:
+
+jobs:
+    test:
+        name: Test
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+
+            - name: Set up Go
+              uses: actions/setup-go@v5
+              with:
+                  go-version-file: go.mod
+
+            - name: Run tests
+              run: go test -race ./...
+    format-and-lint:
+        name: Format & Lint
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+
+            - name: Set up Go
+              uses: actions/setup-go@v5
+              with:
+                  go-version-file: go.mod
+
+            - name: Check formatting
+              run: |
+                  unformatted="$(gofmt -l .)"
+                  if [ -n "$unformatted" ]; then
+                      echo "$unformatted"
+                      exit 1
+                  fi
+
+            - name: Run go vet
+              run: go vet ./...

@@ -1,0 +1,6 @@
+network:
+    port: 8080
+
+timeouts:
+    read: 5s
+    write: 10s

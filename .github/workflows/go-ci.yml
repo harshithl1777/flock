@@ -1,4 +1,4 @@
-name: Lint & Format
+name: Go CI
 
 on:
     push:
@@ -7,6 +7,21 @@ on:
     pull_request:
 
 jobs:
+    test:
+        name: Test
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+
+            - name: Set up Go
+              uses: actions/setup-go@v5
+              with:
+                  go-version-file: go.mod
+
+            - name: Run tests
+              run: go test ./...
     format-and-lint:
         name: Format and Lint
         runs-on: ubuntu-latest

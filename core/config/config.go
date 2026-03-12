@@ -34,7 +34,6 @@ func Load(path string) (*Config, error) {
 	if config.Network.Port < 1 || config.Network.Port > 65535 {
 		return nil, errors.Wrap("validate config", fmt.Errorf("server port must be between 1 and 65535"))
 	}
-	}
 
 	return &config, nil
 }

@@ -21,8 +21,8 @@ func main() {
 	cfg := readConfigYAML()
 
 	srv := server.New(cfg)
-	err := srv.Start()
 	logger.Info("starting server")
+	err := srv.Start()
 
 	if err != nil {
 		logger.Fatal(errors.Wrap("server startup", err))

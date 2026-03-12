@@ -10,9 +10,9 @@ import (
 )
 
 type Config struct {
-	Server struct {
+	Network struct {
 		Port int `yaml:"port"`
-	} `yaml:"server"`
+	} `yaml:"network"`
 
 	Timeouts struct {
 		Read  time.Duration `yaml:"read"`
@@ -31,7 +31,7 @@ func Load(path string) (*Config, error) {
 		return nil, errors.Wrap("parse file", err)
 	}
 
-	if config.Server.Port == 0 {
+	if config.Network.Port == 0 {
 		return nil, errors.Wrap("validate config", fmt.Errorf("server port is undefined"))
 	}
 

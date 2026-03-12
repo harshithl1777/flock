@@ -1,4 +1,4 @@
-server:
+network:
     port: 8080
 
 timeouts:

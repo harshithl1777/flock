@@ -12,7 +12,7 @@ func TestLoad_ValidConfig(t *testing.T) {
 	path := filepath.Join(dir, "config.yaml")
 
 	content := `
-server:
+network:
   port: 8080
 timeouts:
   read: 5s
@@ -28,8 +28,8 @@ timeouts:
 		t.Fatalf("Load returned error: %v", err)
 	}
 
-	if cfg.Server.Port != 8080 {
-		t.Fatalf("got port %d, want 8080", cfg.Server.Port)
+	if cfg.Network.Port != 8080 {
+		t.Fatalf("got port %d, want 8080", cfg.Network.Port)
 	}
 
 	if cfg.Timeouts.Read != 5*time.Second {

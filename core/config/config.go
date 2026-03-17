@@ -20,6 +20,10 @@ type Config struct {
 	} `yaml:"timeouts"`
 }
 
+// Load reads, parses, and validates the YAML configuration file at path.
+//
+// It returns an error when the file cannot be read, the YAML is invalid, or
+// the resulting configuration fails validation.
 func Load(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {

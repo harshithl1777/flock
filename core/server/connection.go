@@ -9,6 +9,9 @@ import (
 	"github.com/harshithl1777/flock/core/utils/logger"
 )
 
+// readRequestLines reads and logs request lines from reader.
+//
+// It stops after the empty line that terminates the HTTP header section.
 func readRequestLines(reader *bufio.Reader) error {
 	for i := 1; ; i++ {
 		line, err := reader.ReadString('\n')
@@ -26,6 +29,10 @@ func readRequestLines(reader *bufio.Reader) error {
 	return nil
 }
 
+// handleConnection reads a single HTTP request from conn.
+//
+// It logs the request lines, writes a plain-text response, and closes the
+// connection before returning.
 func (srv *Server) handleConnection(conn net.Conn) {
 	defer func() {
 		conn.Close()

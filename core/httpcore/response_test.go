@@ -1,6 +1,9 @@
 package httpcore
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestSerializeResponse_DefaultResponse(t *testing.T) {
 	response := NewResponse("Hello World!")
@@ -60,5 +63,31 @@ func TestSerializeResponse_CustomStatusAndHeaders(t *testing.T) {
 
 	if got != want {
 		t.Fatalf("serialized response mismatch\n got: %q\nwant: %q", got, want)
+	}
+}
+
+func TestSerializeResponse_RecomputesContentLength(t *testing.T) {
+	response := NewResponse("Hello")
+	response.Body = "Hello World!"
+
+	got := string(response.SerializeResponse())
+
+	if !strings.Contains(got, "Content-Length: 12\r\n") {
+		t.Fatalf("expected recomputed Content-Length header, got:\n%q", got)
+	}
+}
+
+func TestSerializeResponse_OverridesStaleContentLengthHeader(t *testing.T) {
+	response := NewResponse("Hello World!")
+	response.Headers["Content-Length"] = "999"
+
+	got := string(response.SerializeResponse())
+
+	if !strings.Contains(got, "Content-Length: 12\r\n") {
+		t.Fatalf("expected recomputed Content-Length header, got:\n%q", got)
+	}
+
+	if strings.Contains(got, "Content-Length: 999\r\n") {
+		t.Fatalf("expected stale Content-Length header to be removed, got:\n%q", got)
 	}
 }

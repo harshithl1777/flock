@@ -9,6 +9,9 @@ import (
 
 const configPath = "config.yaml"
 
+// readConfigYAML loads the server configuration.
+//
+// It terminates the process if the configuration cannot be loaded.
 func readConfigYAML() *config.Config {
 	cfg, err := config.Load(configPath)
 	if err != nil {
@@ -17,6 +20,7 @@ func readConfigYAML() *config.Config {
 	return cfg
 }
 
+// main loads configuration, constructs the server, and starts serving requests.
 func main() {
 	cfg := readConfigYAML()
 

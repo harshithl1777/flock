@@ -14,12 +14,17 @@ type Server struct {
 	ln  net.Listener
 }
 
+// New constructs a Server from the provided configuration.
 func New(cfg *config.Config) *Server {
 	return &Server{
 		cfg: cfg,
 	}
 }
 
+// Start opens the configured TCP listener and serves incoming connections.
+//
+// It continues accepting connections until listener creation fails or the
+// process exits.
 func (srv *Server) Start() error {
 	addr := ":" + strconv.Itoa(srv.cfg.Network.Port)
 

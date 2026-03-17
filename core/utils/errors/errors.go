@@ -11,6 +11,10 @@ type OpError struct {
 //
 // If the wrapped error is nil, it returns only the operation name.
 func (e *OpError) Error() string {
+	if e == nil {
+		return "<nil>"
+	}
+
 	if e.Err == nil {
 		return e.Op
 	}
@@ -30,6 +34,10 @@ func New(op string, msg string) error {
 
 // Unwrap returns the underlying error wrapped by the OpError.
 func (e *OpError) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+
 	return e.Err
 }
 
@@ -42,7 +50,7 @@ func Wrap(op string, err error) error {
 		return nil
 	}
 
-	if opErr, ok := err.(*OpError); ok && opErr.Op == op {
+	if opErr, ok := err.(*OpError); ok && opErr != nil && opErr.Op == op {
 		return err
 	}
 	return &OpError{

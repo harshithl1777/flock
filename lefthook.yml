@@ -1,0 +1,8 @@
+pre-commit:
+  commands:
+    gofmt:
+      glob: "*.go"
+      run: gofmt -w {staged_files}
+      stage_fixed: true
+    govet:
+      run: go vet ./...

@@ -31,8 +31,7 @@ func readRequestLines(reader *bufio.Reader) error {
 
 // handleConnection reads a single HTTP request from conn.
 //
-// It logs the request lines, writes a plain-text response, and closes the
-// connection before returning.
+// It logs the request lines, writes a plain-text response, and closes the connection before returning.
 func (srv *Server) handleConnection(conn net.Conn) {
 	defer func() {
 		conn.Close()

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 )
 
 type Response struct {
@@ -16,16 +17,17 @@ type Response struct {
 
 // NewResponse returns a default plain-text HTTP 200 response.
 //
-// It initializes the standard headers used by the server and stores the
-// supplied body.
+// It initializes the standard headers used by the server and stores the supplied body.
+// The Content-Length header is included for redundancy but will be recomputed upon response write.
 func NewResponse(body string) Response {
 	return Response{
 		StatusCode: 200,
 		StatusText: "OK",
 		Headers: map[string]string{
-			"Content-Type": "text/plain",
-			"Connection":   "close",
-			"Server":       "Flock/1.0",
+			"Content-Type":   "text/plain",
+			"Connection":     "close",
+			"Server":         "Flock/1.0",
+			"Content-Length": strconv.Itoa(len(body)),
 		},
 		Body: body,
 	}
@@ -41,7 +43,7 @@ func computePrewriteHeadersAndSortedKeys(response *Response) (map[string]string,
 
 	const contentLengthHeaderKey = "Content-Length"
 	for key, value := range response.Headers {
-		if key == contentLengthHeaderKey {
+		if strings.EqualFold(key, contentLengthHeaderKey) {
 			continue
 		}
 

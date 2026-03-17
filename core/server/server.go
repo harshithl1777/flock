@@ -23,8 +23,7 @@ func New(cfg *config.Config) *Server {
 
 // Start opens the configured TCP listener and serves incoming connections.
 //
-// It continues accepting connections until listener creation fails or the
-// process exits.
+// It continues accepting connections until listener creation fails or the process exits.
 func (srv *Server) Start() error {
 	addr := ":" + strconv.Itoa(srv.cfg.Network.Port)
 

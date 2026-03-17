@@ -1,8 +1,8 @@
-## Summary
+### Summary
 
-## Linked Issue(s)
+### Linked Issue(s)
 
-## Type of change
+### Type of change
 
 - [ ] Bug fix (non-breaking change which fixes an issue)
 - [ ] New feature (non-breaking change which adds functionality)

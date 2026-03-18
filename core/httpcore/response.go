@@ -1,8 +1,8 @@
 package httpcore
 
 import (
-	"bytes"
-	"fmt"
+	"bufio"
+	"io"
 	"sort"
 	"strconv"
 	"strings"
@@ -18,7 +18,7 @@ type Response struct {
 // NewResponse returns a default plain-text HTTP 200 response.
 //
 // It initializes the standard headers used by the server and stores the supplied body.
-// The Content-Length header is included for redundancy but will be recomputed upon response write.
+// Content-Length is populated from the body and recomputed when the response is written.
 func NewResponse(body string) Response {
 	return Response{
 		StatusCode: 200,
@@ -31,6 +31,38 @@ func NewResponse(body string) Response {
 		},
 		Body: body,
 	}
+}
+
+// WriteTo writes the response in HTTP/1.1 wire format to w.
+//
+// It recomputes the Content-Length header from the current body so stale
+// header values do not appear in the serialized output.
+func (response *Response) WriteTo(w io.Writer) (int64, error) {
+	cw := &countingWriter{w: w}
+	bw := bufio.NewWriter(cw) // Buffers the output for smaller strings to reduce syscalls
+
+	headers, headerKeys := computePrewriteHeadersAndSortedKeys(response)
+	bw.WriteString("HTTP/1.1 ")
+	bw.WriteString(strconv.Itoa(response.StatusCode))
+	bw.WriteString(" ")
+	bw.WriteString(response.StatusText)
+	bw.WriteString("\r\n")
+
+	for _, key := range headerKeys {
+		bw.WriteString(key)
+		bw.WriteString(": ")
+		bw.WriteString(headers[key])
+		bw.WriteString("\r\n")
+	}
+
+	bw.WriteString("\r\n")
+	bw.WriteString(response.Body)
+
+	if err := bw.Flush(); err != nil && cw.err == nil {
+		cw.err = err
+	}
+
+	return cw.count, cw.err
 }
 
 // computePrewriteHeadersAndSortedKeys prepares headers for serialization.
@@ -58,23 +90,37 @@ func computePrewriteHeadersAndSortedKeys(response *Response) (map[string]string,
 	return headers, headerKeys
 }
 
-// SerializeResponse serializes the response into HTTP/1.1 wire format.
-//
-// It recomputes the Content-Length header from the current body so stale
-// header values do not appear in the serialized output.
-func (response *Response) SerializeResponse() []byte {
-	headers, headerKeys := computePrewriteHeadersAndSortedKeys(response)
+var _ io.Writer = (*countingWriter)(nil)
+var _ io.StringWriter = (*countingWriter)(nil)
 
-	var buf bytes.Buffer
-	fmt.Fprintf(&buf, "HTTP/1.1 %d %s\r\n", response.StatusCode, response.StatusText)
+// countingWriter intercepts writes to an underlying io.Writer to track the total number of
+// bytes written and capture the first error encountered.
+type countingWriter struct {
+	w     io.Writer
+	count int64
+	err   error
+}
 
-	for _, key := range headerKeys {
-		value := headers[key]
-		fmt.Fprintf(&buf, "%s: %s\r\n", key, value)
+// Write implements the io.Writer interface.
+func (cw *countingWriter) Write(p []byte) (int, error) {
+	if cw.err != nil {
+		return 0, cw.err
 	}
 
-	buf.WriteString("\r\n")
-	buf.WriteString(response.Body)
+	n, err := cw.w.Write(p)
+	cw.count += int64(n)
+	cw.err = err
+	return n, cw.err
+}
 
-	return buf.Bytes()
+// WriteString implements the io.StringWriter interface.
+func (cw *countingWriter) WriteString(s string) (int, error) {
+	if cw.err != nil {
+		return 0, cw.err
+	}
+
+	n, err := io.WriteString(cw.w, s)
+	cw.count += int64(n)
+	cw.err = err
+	return n, cw.err
 }

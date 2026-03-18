@@ -9,9 +9,9 @@ import (
 	"github.com/harshithl1777/flock/core/utils/logger"
 )
 
-// readRequestLines reads and logs request lines from reader.
+// readRequestLines reads and logs HTTP request lines from reader.
 //
-// It stops after the empty line that terminates the HTTP header section.
+// It stops after the blank line that terminates the header section.
 func readRequestLines(reader *bufio.Reader) error {
 	for i := 1; ; i++ {
 		line, err := reader.ReadString('\n')
@@ -44,9 +44,8 @@ func (srv *Server) handleConnection(conn net.Conn) {
 		return
 	}
 	response := httpcore.NewResponse("Hello World!") // TODO: change
-	responseBytes := response.SerializeResponse()
 
-	if _, err := conn.Write(responseBytes); err != nil {
+	if _, err := response.WriteTo(conn); err != nil {
 		logger.Error("write response to connection: %v", err)
 	} else {
 		logger.Info("wrote response to connection from: %s", conn.RemoteAddr().String())

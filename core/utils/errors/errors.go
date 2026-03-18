@@ -9,7 +9,7 @@ type OpError struct {
 
 // Error returns the operation name and wrapped error message.
 //
-// If the wrapped error is nil, it returns only the operation name.
+// If the receiver or wrapped error is nil, it returns the available message only.
 func (e *OpError) Error() string {
 	if e == nil {
 		return "<nil>"
@@ -23,8 +23,8 @@ func (e *OpError) Error() string {
 
 // New constructs an OpError for the given operation and message.
 //
-// The message is wrapped as a concrete error value so it can participate in
-// the same error-handling flow as other wrapped errors.
+// The message is wrapped as a concrete error value so it participates in the
+// same error-handling flow as other wrapped errors.
 func New(op string, msg string) error {
 	return &OpError{
 		Op:  op,
@@ -33,6 +33,8 @@ func New(op string, msg string) error {
 }
 
 // Unwrap returns the underlying error wrapped by the OpError.
+//
+// A nil receiver returns nil.
 func (e *OpError) Unwrap() error {
 	if e == nil {
 		return nil
@@ -43,8 +45,8 @@ func (e *OpError) Unwrap() error {
 
 // Wrap annotates err with the provided operation.
 //
-// It returns nil when err is nil, and avoids double-wrapping when err is
-// already an OpError for the same operation.
+// It returns nil when err is nil and avoids double-wrapping when err is already
+// an OpError for the same operation.
 func Wrap(op string, err error) error {
 	if err == nil {
 		return nil

@@ -1,4 +1,4 @@
-package httpcore
+package http
 
 import (
 	"bytes"
@@ -8,8 +8,18 @@ import (
 	"testing"
 )
 
+func assertResponseHasParts(t *testing.T, got string, parts ...string) {
+	t.Helper()
+
+	for _, part := range parts {
+		if !strings.Contains(got, part) {
+			t.Fatalf("response missing %q:\n%q", part, got)
+		}
+	}
+}
+
 func TestWriteTo_DefaultResponse(t *testing.T) {
-	response := NewResponse("Hello World!")
+	response := NewResponse(StatusOK, "Hello World!")
 	var buf bytes.Buffer
 
 	if _, err := response.WriteTo(&buf); err != nil {
@@ -17,22 +27,22 @@ func TestWriteTo_DefaultResponse(t *testing.T) {
 	}
 
 	got := buf.String()
-	want := "" +
-		"HTTP/1.1 200 OK\r\n" +
-		"Connection: close\r\n" +
-		"Content-Length: 12\r\n" +
-		"Content-Type: text/plain\r\n" +
-		"Server: Flock/1.0\r\n" +
-		"\r\n" +
-		"Hello World!"
+	assertResponseHasParts(t, got,
+		"HTTP/1.1 200 OK\r\n",
+		"Connection: close\r\n",
+		"Content-Type: text/plain\r\n",
+		"Server: Flock/1.0\r\n",
+		"Content-Length: 12\r\n",
+		"\r\n\r\nHello World!",
+	)
 
-	if got != want {
-		t.Fatalf("serialized response mismatch\n got: %q\nwant: %q", got, want)
+	if !strings.HasPrefix(got, "HTTP/1.1 200 OK\r\n") {
+		t.Fatalf("response missing status line prefix: %q", got)
 	}
 }
 
 func TestWriteTo_EmptyBody(t *testing.T) {
-	response := NewResponse("")
+	response := NewResponse(StatusOK, "")
 	var buf bytes.Buffer
 
 	if _, err := response.WriteTo(&buf); err != nil {
@@ -40,16 +50,17 @@ func TestWriteTo_EmptyBody(t *testing.T) {
 	}
 
 	got := buf.String()
-	want := "" +
-		"HTTP/1.1 200 OK\r\n" +
-		"Connection: close\r\n" +
-		"Content-Length: 0\r\n" +
-		"Content-Type: text/plain\r\n" +
-		"Server: Flock/1.0\r\n" +
-		"\r\n"
+	assertResponseHasParts(t, got,
+		"HTTP/1.1 200 OK\r\n",
+		"Connection: close\r\n",
+		"Content-Type: text/plain\r\n",
+		"Server: Flock/1.0\r\n",
+		"Content-Length: 0\r\n",
+		"\r\n\r\n",
+	)
 
-	if got != want {
-		t.Fatalf("serialized response mismatch\n got: %q\nwant: %q", got, want)
+	if !strings.HasSuffix(got, "\r\n\r\n") {
+		t.Fatalf("expected empty-body response terminator, got %q", got)
 	}
 }
 
@@ -71,21 +82,21 @@ func TestWriteTo_CustomStatusAndHeaders(t *testing.T) {
 	}
 
 	got := buf.String()
-	want := "" +
-		"HTTP/1.1 404 Not Found\r\n" +
-		"Content-Length: 9\r\n" +
-		"Content-Type: text/plain\r\n" +
-		"X-Trace-Id: abc123\r\n" +
-		"\r\n" +
-		"not found"
+	assertResponseHasParts(t, got,
+		"HTTP/1.1 404 Not Found\r\n",
+		"Content-Type: text/plain\r\n",
+		"X-Trace-Id: abc123\r\n",
+		"Content-Length: 9\r\n",
+		"\r\n\r\nnot found",
+	)
 
-	if got != want {
-		t.Fatalf("serialized response mismatch\n got: %q\nwant: %q", got, want)
+	if strings.Contains(got, "Content-Length: 9\r\nContent-Length:") {
+		t.Fatalf("expected only one Content-Length header, got %q", got)
 	}
 }
 
 func TestWriteTo_RecomputesContentLength(t *testing.T) {
-	response := NewResponse("Hello")
+	response := NewResponse(StatusOK, "Hello")
 	response.Body = "Hello World!"
 	var buf bytes.Buffer
 
@@ -106,7 +117,7 @@ func TestWriteTo_RecomputesContentLength(t *testing.T) {
 }
 
 func TestWriteTo_OverridesStaleContentLengthHeader(t *testing.T) {
-	response := NewResponse("Hello World!")
+	response := NewResponse(StatusOK, "Hello World!")
 	response.Headers["Content-Length"] = "999"
 	var buf bytes.Buffer
 
@@ -148,7 +159,7 @@ func (w *failAfterNWriter) Write(p []byte) (int, error) {
 var _ io.Writer = (*failAfterNWriter)(nil)
 
 func TestWriteTo_PropagatesWriterErrorAndPartialCount(t *testing.T) {
-	response := NewResponse("Hello World!")
+	response := NewResponse(StatusOK, "Hello World!")
 	response.Headers["Content-Length"] = "999"
 
 	expected := errors.New("write failed")

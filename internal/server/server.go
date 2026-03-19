@@ -4,9 +4,9 @@ import (
 	"net"
 	"strconv"
 
-	"github.com/harshithl1777/flock/core/config"
-	"github.com/harshithl1777/flock/core/utils/errors"
-	"github.com/harshithl1777/flock/core/utils/logger"
+	"github.com/harshithl1777/flock/internal/config"
+	"github.com/harshithl1777/flock/internal/errors"
+	"github.com/harshithl1777/flock/internal/logger"
 )
 
 type Server struct {

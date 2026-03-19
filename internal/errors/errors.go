@@ -32,6 +32,14 @@ func New(op string, msg string) error {
 	}
 }
 
+// Newf constructs an OpError for the given operation and formatted message.
+func Newf(op string, format string, args ...any) error {
+	return &OpError{
+		Op:  op,
+		Err: fmt.Errorf(format, args...),
+	}
+}
+
 // Unwrap returns the underlying error wrapped by the OpError.
 //
 // A nil receiver returns nil.

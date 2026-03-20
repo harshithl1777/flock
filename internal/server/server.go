@@ -33,16 +33,15 @@ func (srv *Server) Start() error {
 	}
 
 	srv.ln = ln
-	logger.Info("listening on %s", addr)
+	logger.Info("listening", logger.String("addr", addr))
 
 	for {
 		conn, err := srv.ln.Accept()
 		if err != nil {
-			logger.Error("accept new connection: %v", err)
+			logger.Error("accept new connection", logger.Err(err))
 			continue
 		}
 
-		logger.Info("accepted new connection from %s", conn.RemoteAddr().String())
 		srv.handleConnection(conn)
 	}
 }

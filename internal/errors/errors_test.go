@@ -1,6 +1,10 @@
 package errors
 
-import "testing"
+import (
+	"testing"
+
+	"go.uber.org/zap/zapcore"
+)
 
 func TestOpErrorError_NilReceiver(t *testing.T) {
 	var opErr *OpError
@@ -57,5 +61,18 @@ func TestNewf_ReturnsOpError(t *testing.T) {
 
 	if got := opErr.Unwrap(); got == nil || got.Error() != "invalid content length: 12" {
 		t.Fatalf("unexpected wrapped error: %v", got)
+	}
+}
+
+func TestOpErrorMarshalLogObject_NilReceiver(t *testing.T) {
+	var opErr *OpError
+	enc := zapcore.NewMapObjectEncoder()
+
+	if err := opErr.MarshalLogObject(enc); err != nil {
+		t.Fatalf("MarshalLogObject returned error: %v", err)
+	}
+
+	if got := enc.Fields["error"]; got != "<nil>" {
+		t.Fatalf("got error field %v, want <nil>", got)
 	}
 }

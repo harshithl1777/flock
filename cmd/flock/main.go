@@ -15,13 +15,15 @@ const configPath = ""
 func readConfigYAML() *config.Config {
 	cfg, err := config.Load(configPath)
 	if err != nil {
-		logger.Fatal(errors.Wrap("load config", err))
+		logger.Fatal("failed to load config", logger.Err(errors.Wrap("load config", err)))
 	}
 	return cfg
 }
 
 // main loads configuration, constructs the server, and starts serving requests.
 func main() {
+	defer logger.Sync()
+
 	cfg := readConfigYAML()
 
 	srv := server.New(cfg)
@@ -29,6 +31,6 @@ func main() {
 	err := srv.Start()
 
 	if err != nil {
-		logger.Fatal(errors.Wrap("server startup", err))
+		logger.Fatal("failed to start server", logger.Err(errors.Wrap("server startup", err)))
 	}
 }

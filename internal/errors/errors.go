@@ -1,10 +1,15 @@
 package errors
 
-import "fmt"
+import (
+	"fmt"
+
+	"go.uber.org/zap/zapcore"
+)
 
 type OpError struct {
-	Op  string
-	Err error
+	Kind ErrorKind
+	Op   string
+	Err  error
 }
 
 // Error returns the operation name and wrapped error message.
@@ -38,6 +43,22 @@ func Newf(op string, format string, args ...any) error {
 		Op:  op,
 		Err: fmt.Errorf(format, args...),
 	}
+}
+
+// MarshalLogObject encodes an OpError as structured fields for zap logs.
+func (e *OpError) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	if e == nil {
+		enc.AddString("error", "<nil>")
+		return nil
+	}
+
+	enc.AddString("op", e.Op)
+	enc.AddString("kind", e.Kind.String())
+	if e.Err != nil {
+		enc.AddString("error", e.Error())
+	}
+
+	return nil
 }
 
 // Unwrap returns the underlying error wrapped by the OpError.

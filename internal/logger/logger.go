@@ -1,47 +1,99 @@
 package logger
 
 import (
-	"fmt"
-	"log"
+	"errors"
 	"os"
-	"path/filepath"
-	"runtime"
+	"time"
+
+	flockerrors "github.com/harshithl1777/flock/internal/errors"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
-// init configures the standard logger flags used across the application.
+var base *zap.Logger
+
+// init configures the shared zap logger used across the application.
+//
+// FLOCK_ENV=development uses a human-readable console encoder. Production and
+// an empty environment both use JSON output for machine consumption.
 func init() {
-	log.SetFlags(log.Ldate | log.Ltime)
+	base = mustNewLogger(os.Getenv("FLOCK_ENV"), zapcore.AddSync(os.Stdout), true)
 }
 
-// caller returns the base file name and line number for the caller.
-//
-// The skip value follows runtime.Caller semantics.
-func caller(skip int) string {
-	_, file, line, ok := runtime.Caller(skip)
-	if !ok {
-		return "unknown:0"
+func mustNewLogger(env string, sink zapcore.WriteSyncer, colorize bool) *zap.Logger {
+	logger, err := newLogger(env, sink, colorize)
+	if err != nil {
+		panic(err)
 	}
 
-	return fmt.Sprintf("%s:%d", filepath.Base(file), line)
+	return logger
 }
 
-// Info logs a formatted informational message with caller location metadata.
-func Info(format string, args ...any) {
-	loc := caller(2)
-	log.Printf("%s [INFO] %s", loc, fmt.Sprintf(format, args...))
+func newLogger(env string, sink zapcore.WriteSyncer, colorize bool) (*zap.Logger, error) {
+	encoder := newEncoder(env, colorize)
+	core := zapcore.NewCore(encoder, sink, zap.InfoLevel)
+	if env == "development" {
+		core = &messagePaddingCore{Core: core, width: messageWidth}
+	}
+
+	return zap.New(core, zap.AddCaller(), zap.AddCallerSkip(1)), nil
 }
 
-// Error logs a formatted error message with caller location metadata.
-func Error(format string, args ...any) {
-	loc := caller(2)
-	log.Printf("%s [ERROR] %s", loc, fmt.Sprintf(format, args...))
+// Sync flushes any buffered log entries to their destination.
+func Sync() error {
+	if base == nil {
+		return nil
+	}
+
+	return base.Sync()
 }
 
-// Fatal logs a fatal message with caller location metadata.
-//
-// It exits the process with status code 1 after writing the log entry.
-func Fatal(args ...any) {
-	loc := caller(2)
-	log.Printf("%s [FATAL] %s", loc, fmt.Sprint(args...))
-	os.Exit(1)
+// Info logs an informational message with optional structured fields.
+func Info(msg string, fields ...zap.Field) {
+	base.Info(msg, fields...)
+}
+
+// Error logs an error message with optional structured fields.
+func Error(msg string, fields ...zap.Field) {
+	base.Error(msg, fields...)
+}
+
+// Fatal logs a fatal message with optional structured fields and exits.
+func Fatal(msg string, fields ...zap.Field) {
+	base.Fatal(msg, fields...)
+}
+
+// With returns a child logger with fields attached to every entry.
+func With(fields ...zap.Field) *zap.Logger {
+	return base.With(fields...)
+}
+
+// String constructs a string field for structured logs.
+func String(key, value string) zap.Field {
+	return zap.String(key, value)
+}
+
+// Int constructs an integer field for structured logs.
+func Int(key string, value int) zap.Field {
+	return zap.Int(key, value)
+}
+
+// Duration constructs a duration field for structured logs.
+func Duration(key string, value time.Duration) zap.Field {
+	return zap.Duration(key, value)
+}
+
+// Any constructs a generic field for structured logs.
+func Any(key string, value any) zap.Field {
+	return zap.Any(key, value)
+}
+
+// Err constructs an error field for structured logs.
+func Err(err error) zap.Field {
+	var opErr *flockerrors.OpError
+	if errors.As(err, &opErr) {
+		return zap.Object("error", opErr)
+	}
+
+	return zap.Error(err)
 }

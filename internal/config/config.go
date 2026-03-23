@@ -9,19 +9,31 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-//go:embed default.yaml
-var defaultConfigBytes []byte
+type NetworkConfig struct {
+	Port int `yaml:"port"`
+}
+
+type RouteConfig struct {
+	Path    string   `yaml:"path"`
+	Handler string   `yaml:"handler"`
+	Methods []string `yaml:"methods"`
+}
+
+type RoutesConfig []RouteConfig
+
+type TimeoutsConfig struct {
+	Read  time.Duration `yaml:"read"`
+	Write time.Duration `yaml:"write"`
+}
 
 type Config struct {
-	Network struct {
-		Port int `yaml:"port"`
-	} `yaml:"network"`
-
-	Timeouts struct {
-		Read  time.Duration `yaml:"read"`
-		Write time.Duration `yaml:"write"`
-	} `yaml:"timeouts"`
+	Network  NetworkConfig  `yaml:"network"`
+	Routes   RoutesConfig   `yaml:"routes"`
+	Timeouts TimeoutsConfig `yaml:"timeouts"`
 }
+
+//go:embed default.yaml
+var defaultConfigBytes []byte
 
 // Load reads, parses, and validates the YAML configuration file at path.
 //

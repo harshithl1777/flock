@@ -20,6 +20,7 @@ func init() {
 	base = mustNewLogger(os.Getenv("FLOCK_ENV"), zapcore.AddSync(os.Stdout), true)
 }
 
+// mustNewLogger constructs a logger and panics if configuration fails.
 func mustNewLogger(env string, sink zapcore.WriteSyncer, colorize bool) *zap.Logger {
 	logger, err := newLogger(env, sink, colorize)
 	if err != nil {
@@ -29,6 +30,7 @@ func mustNewLogger(env string, sink zapcore.WriteSyncer, colorize bool) *zap.Log
 	return logger
 }
 
+// newLogger builds a zap logger for the configured environment.
 func newLogger(env string, sink zapcore.WriteSyncer, colorize bool) (*zap.Logger, error) {
 	encoder := newEncoder(env, colorize)
 	core := zapcore.NewCore(encoder, sink, zap.InfoLevel)

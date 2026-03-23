@@ -37,6 +37,7 @@ type messagePaddingCore struct {
 	width int
 }
 
+// Check adds the core to the checked entry when the level is enabled.
 func (core *messagePaddingCore) Check(entry zapcore.Entry, checked *zapcore.CheckedEntry) *zapcore.CheckedEntry {
 	if !core.Enabled(entry.Level) {
 		return checked
@@ -45,6 +46,7 @@ func (core *messagePaddingCore) Check(entry zapcore.Entry, checked *zapcore.Chec
 	return checked.AddCore(entry, core)
 }
 
+// With clones the core and attaches the supplied structured fields.
 func (core *messagePaddingCore) With(fields []zapcore.Field) zapcore.Core {
 	return &messagePaddingCore{
 		Core:  core.Core.With(fields),
@@ -52,11 +54,13 @@ func (core *messagePaddingCore) With(fields []zapcore.Field) zapcore.Core {
 	}
 }
 
+// Write pads the log message column before delegating to the wrapped core.
 func (core *messagePaddingCore) Write(entry zapcore.Entry, fields []zapcore.Field) error {
 	entry.Message = padString(entry.Message, core.width) + " "
 	return core.Core.Write(entry, fields)
 }
 
+// fixedWidthLevelEncoder returns a level encoder with padded, optional colorized output.
 func fixedWidthLevelEncoder(colorize bool) zapcore.LevelEncoder {
 	return func(level zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {
 		label := padString(level.CapitalString(), levelWidth)
@@ -69,10 +73,12 @@ func fixedWidthLevelEncoder(colorize bool) zapcore.LevelEncoder {
 	}
 }
 
+// fixedWidthCallerEncoder writes the trimmed caller path in a fixed-width column.
 func fixedWidthCallerEncoder(caller zapcore.EntryCaller, enc zapcore.PrimitiveArrayEncoder) {
 	enc.AppendString(padString(caller.TrimmedPath(), callerWidth))
 }
 
+// colorizeLevel wraps a padded level label in ANSI color codes.
 func colorizeLevel(level zapcore.Level, label string) string {
 	switch level {
 	case zapcore.DebugLevel:
@@ -90,6 +96,7 @@ func colorizeLevel(level zapcore.Level, label string) string {
 	}
 }
 
+// padString right-pads value with spaces up to width.
 func padString(value string, width int) string {
 	if len(value) >= width {
 		return value

@@ -8,18 +8,22 @@ type StatusCode int
 
 // Status codes
 const (
-	StatusOK                  StatusCode = 200
-	StatusBadRequest          StatusCode = 400
-	StatusNotFound            StatusCode = 404
-	StatusInternalServerError StatusCode = 500
+	StatusOK                          StatusCode = 200
+	StatusBadRequest                  StatusCode = 400
+	StatusNotFound                    StatusCode = 404
+	StatusRequestHeaderFieldsTooLarge StatusCode = 431
+	StatusInternalServerError         StatusCode = 500
+	StatusHTTPVersionNotSupported     StatusCode = 505
 )
 
 // statusText maps codes to their official HTTP strings
 var statusText = map[StatusCode]string{
-	StatusOK:                  "OK",
-	StatusBadRequest:          "Bad Request",
-	StatusNotFound:            "Not Found",
-	StatusInternalServerError: "Internal Server Error",
+	StatusOK:                          "OK",
+	StatusBadRequest:                  "Bad Request",
+	StatusNotFound:                    "Not Found",
+	StatusRequestHeaderFieldsTooLarge: "Request Header Fields Too Large",
+	StatusInternalServerError:         "Internal Server Error",
+	StatusHTTPVersionNotSupported:     "HTTP Version Not Supported",
 }
 
 type Method string
@@ -47,10 +51,11 @@ type HeaderKey string
 const (
 	HeaderContentType      HeaderKey = "Content-Type"
 	HeaderContentLength    HeaderKey = "Content-Length"
-	HeaderServer           HeaderKey = "Server"
 	HeaderConnection       HeaderKey = "Connection"
 	HeaderHost             HeaderKey = "Host"
+	HeaderServer           HeaderKey = "Server"
 	HeaderTransferEncoding HeaderKey = "Transfer-Encoding"
+	HeaderXRequestId       HeaderKey = "X-Request-Id"
 )
 
 // StatusText returns the text for a StatusCode.
@@ -61,6 +66,7 @@ func (code StatusCode) Text() string {
 	return fmt.Sprintf("%d", code)
 }
 
+// IsValid reports whether m is one of the supported HTTP methods.
 func (m Method) IsValid() bool {
 	switch m {
 	case "GET", "POST", "PUT", "DELETE", "HEAD", "OPTIONS":
@@ -70,9 +76,10 @@ func (m Method) IsValid() bool {
 	}
 }
 
+// IsValid reports whether v is one of the supported HTTP versions.
 func (v Version) IsValid() bool {
 	switch v {
-	case "HTTP/1.0", "HTTP/1.1", "HTTP/2.0":
+	case "HTTP/1.0", "HTTP/1.1":
 		return true
 	default:
 		return false

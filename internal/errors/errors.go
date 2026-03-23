@@ -1,6 +1,7 @@
 package errors
 
 import (
+	"errors"
 	"fmt"
 
 	"go.uber.org/zap/zapcore"
@@ -23,25 +24,27 @@ func (e *OpError) Error() string {
 	if e.Err == nil {
 		return e.Op
 	}
-	return e.Op + ": " + e.Err.Error()
+	return e.Err.Error()
 }
 
 // New constructs an OpError for the given operation and message.
 //
 // The message is wrapped as a concrete error value so it participates in the
 // same error-handling flow as other wrapped errors.
-func New(op string, msg string) error {
+func New(kind ErrorKind, op string, msg string) *OpError {
 	return &OpError{
-		Op:  op,
-		Err: fmt.Errorf("%s", msg),
+		Kind: kind,
+		Op:   op,
+		Err:  fmt.Errorf("%s", msg),
 	}
 }
 
 // Newf constructs an OpError for the given operation and formatted message.
-func Newf(op string, format string, args ...any) error {
+func Newf(kind ErrorKind, op string, format string, args ...any) *OpError {
 	return &OpError{
-		Op:  op,
-		Err: fmt.Errorf(format, args...),
+		Kind: kind,
+		Op:   op,
+		Err:  fmt.Errorf(format, args...),
 	}
 }
 
@@ -76,16 +79,36 @@ func (e *OpError) Unwrap() error {
 //
 // It returns nil when err is nil and avoids double-wrapping when err is already
 // an OpError for the same operation.
-func Wrap(op string, err error) error {
+func Wrap(kind ErrorKind, op string, err error) *OpError {
 	if err == nil {
 		return nil
 	}
 
-	if opErr, ok := err.(*OpError); ok && opErr != nil && opErr.Op == op {
-		return err
-	}
 	return &OpError{
-		Op:  op,
-		Err: err,
+		Kind: kind,
+		Op:   op,
+		Err:  err,
+	}
+}
+
+// Chain adds a new operation to an existing OpError while preserving its Kind.
+func Chain(op string, err error) *OpError {
+	if err == nil {
+		return nil
+	}
+
+	var opErr *OpError
+	if !errors.As(err, &opErr) || opErr == nil {
+		return &OpError{
+			Op:   op,
+			Kind: InternalServerErrorKind,
+			Err:  err,
+		}
+	}
+
+	return &OpError{
+		Op:   op,
+		Kind: opErr.Kind,
+		Err:  err,
 	}
 }

@@ -8,13 +8,11 @@ import (
 	"time"
 )
 
-func TestHandleConnection_WritesHTTPResponse(t *testing.T) {
+func TestConnectionServe_WritesHTTPResponse(t *testing.T) {
 	serverConn, clientConn := net.Pipe()
 	defer clientConn.Close()
 
-	srv := &Server{}
-
-	go srv.handleConnection(serverConn)
+	go newConnection(serverConn).serve()
 
 	if err := clientConn.SetDeadline(time.Now().Add(2 * time.Second)); err != nil {
 		t.Fatalf("set deadline: %v", err)
@@ -39,11 +37,23 @@ func TestHandleConnection_WritesHTTPResponse(t *testing.T) {
 		t.Fatalf("response missing status line: %q", response)
 	}
 
-	if !strings.Contains(response, "\r\n\r\nHello World!") {
-		t.Fatalf("response missing body separator or body: %q", response)
+	if !strings.Contains(response, "Content-Type: text/plain; charset=utf-8\r\n") {
+		t.Fatalf("response missing content type: %q", response)
 	}
 
-	if !strings.Contains(response, "Content-Length: 12\r\n") {
+	if !strings.Contains(response, "Connection: close\r\n") {
+		t.Fatalf("response missing connection header: %q", response)
+	}
+
+	if !strings.Contains(response, "Server: Flock/1.0\r\n") {
+		t.Fatalf("response missing server header: %q", response)
+	}
+
+	if !strings.Contains(response, "X-Request-Id: req_") {
+		t.Fatalf("response missing request id: %q", response)
+	}
+
+	if !strings.Contains(response, "Content-Length: 0\r\n") {
 		t.Fatalf("response missing content length: %q", response)
 	}
 }

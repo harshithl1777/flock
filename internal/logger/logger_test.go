@@ -108,7 +108,7 @@ func TestErr_OpErrorUsesStructuredObject(t *testing.T) {
 		t.Fatalf("newLogger returned error: %v", err)
 	}
 
-	log.Error("request failed", Err(flockerrors.Newf("read request", "invalid http method: %s", "TRACE")))
+	log.Error("request failed", Err(flockerrors.Newf(flockerrors.MalformedRequestLineKind, "read request", "invalid http method: %s", "TRACE")))
 
 	got := strings.TrimSpace(buf.String())
 
@@ -126,7 +126,7 @@ func TestErr_OpErrorUsesStructuredObject(t *testing.T) {
 		t.Fatalf("got op %v, want read request", errorField["op"])
 	}
 
-	if errorField["error"] != "read request: invalid http method: TRACE" {
+	if errorField["error"] != "invalid http method: TRACE" {
 		t.Fatalf("got nested error %v, want full message", errorField["error"])
 	}
 }

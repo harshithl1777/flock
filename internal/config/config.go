@@ -27,14 +27,14 @@ type Config struct {
 //
 // It returns an error when the file cannot be read, the YAML is invalid, or
 // the resulting configuration fails validation.
-func Load(configFilePath string) (*Config, error) {
+func Load(configFilePath string) (*Config, *errors.OpError) {
 	var data []byte
 	var err error
 
 	if configFilePath != "" {
 		data, err = os.ReadFile(configFilePath)
 		if err != nil {
-			return nil, errors.Wrap("read file", err)
+			return nil, errors.Wrap(errors.ConfigLoadKind, "read file", err)
 		}
 	} else {
 		data = defaultConfigBytes
@@ -42,11 +42,11 @@ func Load(configFilePath string) (*Config, error) {
 
 	var cfg Config
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
-		return nil, errors.Wrap("parse file", err)
+		return nil, errors.Wrap(errors.ConfigLoadKind, "parse file", err)
 	}
 
 	if cfg.Network.Port < 1 || cfg.Network.Port > 65535 {
-		return nil, errors.Newf("validate config", "invalid server port: %d", cfg.Network.Port)
+		return nil, errors.Newf(errors.ConfigLoadKind, "validate config", "invalid server port: %d", cfg.Network.Port)
 	}
 
 	return &cfg, nil

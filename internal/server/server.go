@@ -29,19 +29,20 @@ func (srv *Server) Start() error {
 
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
-		return errors.Wrap("open tcp listener", err)
+		return errors.Wrap(errors.ServerStartupKind, "open tcp listener", err)
 	}
 
 	srv.ln = ln
-	logger.Info("listening", logger.String("addr", addr))
+	logger.Info("listen on tcp", logger.String("address", addr))
 
 	for {
-		conn, err := srv.ln.Accept()
+		netConn, err := srv.ln.Accept()
 		if err != nil {
 			logger.Error("accept new connection", logger.Err(err))
 			continue
 		}
 
-		srv.handleConnection(conn)
+		conn := newConnection(netConn)
+		conn.serve()
 	}
 }

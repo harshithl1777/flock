@@ -115,6 +115,10 @@ func parseHeaders(reader *bufio.Reader) (map[string]string, *errors.OpError) {
 		headers[textproto.CanonicalMIMEHeaderKey(key)] = value
 	}
 
+	if _, ok := headers[string(HeaderHost)]; !ok {
+		return nil, errors.New(errors.MissingHostKind, "parse headers", "missing host header")
+	}
+
 	return headers, nil
 }
 

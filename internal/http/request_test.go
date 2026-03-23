@@ -78,3 +78,18 @@ func TestReadRequest_RejectsChunkedTransferEncoding(t *testing.T) {
 		t.Fatalf("unexpected error: %v", got)
 	}
 }
+
+func TestReadRequest_RequiresHostHeader(t *testing.T) {
+	raw := "" +
+		"GET / HTTP/1.1\r\n" +
+		"\r\n"
+
+	_, err := ReadRequest(bufio.NewReader(strings.NewReader(raw)))
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+
+	if got := err.Error(); !strings.Contains(got, "missing host header") {
+		t.Fatalf("unexpected error: %v", got)
+	}
+}

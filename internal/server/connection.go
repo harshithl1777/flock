@@ -28,7 +28,7 @@ type RequestContext struct {
 // serve reads a single HTTP request, writes a response, and closes the connection.
 func (c *Connection) serve() {
 	defer func() {
-		c.Conn.Close()
+		c.Close()
 		c.log.Info("close connection")
 	}()
 
@@ -37,7 +37,7 @@ func (c *Connection) serve() {
 	ctx := newRequestContext()
 	ctx.log.Info("serve new request")
 
-	reader := bufio.NewReader(c.Conn)
+	reader := bufio.NewReader(c)
 	request, err := http.ReadRequest(reader)
 
 	if err != nil {
@@ -72,7 +72,7 @@ func (c *Connection) write(ctx *RequestContext, r *http.Response, err *errors.Op
 		WithHeader(http.HeaderXRequestId, ctx.id).
 		WithHeader(http.HeaderConnection, "close")
 
-	_, writeErr := r.WriteTo(c.Conn)
+	_, writeErr := r.WriteTo(c)
 
 	latency := time.Since(ctx.startTs)
 

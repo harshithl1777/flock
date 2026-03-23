@@ -57,3 +57,40 @@ func TestConnectionServe_WritesHTTPResponse(t *testing.T) {
 		t.Fatalf("response missing content length: %q", response)
 	}
 }
+
+func TestConnectionServe_MissingHostReturnsBadRequest(t *testing.T) {
+	serverConn, clientConn := net.Pipe()
+	defer clientConn.Close()
+
+	go newConnection(serverConn).serve()
+
+	if err := clientConn.SetDeadline(time.Now().Add(2 * time.Second)); err != nil {
+		t.Fatalf("set deadline: %v", err)
+	}
+
+	request := "" +
+		"GET / HTTP/1.1\r\n" +
+		"\r\n"
+	if _, err := clientConn.Write([]byte(request)); err != nil {
+		t.Fatalf("write request: %v", err)
+	}
+
+	responseBytes, err := io.ReadAll(clientConn)
+	if err != nil {
+		t.Fatalf("read response: %v", err)
+	}
+
+	response := string(responseBytes)
+
+	if !strings.HasPrefix(response, "HTTP/1.1 400 Bad Request\r\n") {
+		t.Fatalf("response missing bad request status line: %q", response)
+	}
+
+	if !strings.Contains(response, "Content-Type: application/json; charset=utf-8\r\n") {
+		t.Fatalf("response missing json content type: %q", response)
+	}
+
+	if !strings.Contains(response, `{"error":"missing_host","description":"the Host header is required"}`) {
+		t.Fatalf("response missing missing_host error body: %q", response)
+	}
+}

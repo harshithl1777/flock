@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/harshithl1777/flock/internal/protocol"
 )
 
 func TestLoad_ValidConfig(t *testing.T) {
@@ -16,11 +18,13 @@ network:
   port: 8080
 routes:
   - path: /
-    handler: health
     methods: [GET]
+    health:
+      code: 200
   - path: /users
-    handler: users
     methods: [GET, POST]
+    status:
+      code: 201
 timeouts:
   read: 5s
   write: 10s
@@ -47,11 +51,15 @@ timeouts:
 		t.Fatalf("got first route path %q, want /", cfg.Routes[0].Path)
 	}
 
-	if cfg.Routes[0].Handler != "health" {
-		t.Fatalf("got first route handler %q, want health", cfg.Routes[0].Handler)
+	if cfg.Routes[0].HealthOptions == nil {
+		t.Fatal("expected first route health options")
 	}
 
-	if len(cfg.Routes[0].Methods) != 1 || cfg.Routes[0].Methods[0] != "GET" {
+	if cfg.Routes[0].HealthOptions.Code != protocol.StatusOK {
+		t.Fatalf("got first route health code %d, want %d", cfg.Routes[0].HealthOptions.Code, protocol.StatusOK)
+	}
+
+	if len(cfg.Routes[0].Methods) != 1 || cfg.Routes[0].Methods[0] != protocol.Get {
 		t.Fatalf("got first route methods %v, want [GET]", cfg.Routes[0].Methods)
 	}
 
@@ -59,11 +67,15 @@ timeouts:
 		t.Fatalf("got second route path %q, want /users", cfg.Routes[1].Path)
 	}
 
-	if cfg.Routes[1].Handler != "users" {
-		t.Fatalf("got second route handler %q, want users", cfg.Routes[1].Handler)
+	if cfg.Routes[1].StatusOptions == nil {
+		t.Fatal("expected second route status options")
 	}
 
-	if len(cfg.Routes[1].Methods) != 2 || cfg.Routes[1].Methods[0] != "GET" || cfg.Routes[1].Methods[1] != "POST" {
+	if cfg.Routes[1].StatusOptions.Code != protocol.StatusCreated {
+		t.Fatalf("got second route status code %d, want %d", cfg.Routes[1].StatusOptions.Code, protocol.StatusCreated)
+	}
+
+	if len(cfg.Routes[1].Methods) != 2 || cfg.Routes[1].Methods[0] != protocol.Get || cfg.Routes[1].Methods[1] != protocol.Post {
 		t.Fatalf("got second route methods %v, want [GET POST]", cfg.Routes[1].Methods)
 	}
 
@@ -94,11 +106,15 @@ func TestLoad_DefaultConfigWhenPathEmpty(t *testing.T) {
 		t.Fatalf("got route path %q, want /", cfg.Routes[0].Path)
 	}
 
-	if cfg.Routes[0].Handler != "health" {
-		t.Fatalf("got route handler %q, want health", cfg.Routes[0].Handler)
+	if cfg.Routes[0].HealthOptions == nil {
+		t.Fatal("expected default route health options")
 	}
 
-	if len(cfg.Routes[0].Methods) != 1 || cfg.Routes[0].Methods[0] != "GET" {
+	if cfg.Routes[0].HealthOptions.Code != protocol.StatusOK {
+		t.Fatalf("got route health code %d, want %d", cfg.Routes[0].HealthOptions.Code, protocol.StatusOK)
+	}
+
+	if len(cfg.Routes[0].Methods) != 1 || cfg.Routes[0].Methods[0] != protocol.Get {
 		t.Fatalf("got route methods %v, want [GET]", cfg.Routes[0].Methods)
 	}
 

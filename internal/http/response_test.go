@@ -2,12 +2,13 @@ package http
 
 import (
 	"bytes"
-	stdErrors "errors"
+	errors "errors"
 	"io"
 	"strings"
 	"testing"
 
 	flockerrors "github.com/harshithl1777/flock/internal/errors"
+	"github.com/harshithl1777/flock/internal/protocol"
 )
 
 func assertResponseHasParts(t *testing.T, got string, parts ...string) {
@@ -21,7 +22,7 @@ func assertResponseHasParts(t *testing.T, got string, parts ...string) {
 }
 
 func TestWriteTo_TextResponse(t *testing.T) {
-	response := NewTextResponse(StatusOK, "Hello World!")
+	response := NewTextResponse(protocol.StatusOK, "Hello World!")
 	var buf bytes.Buffer
 
 	if _, err := response.WriteTo(&buf); err != nil {
@@ -38,7 +39,7 @@ func TestWriteTo_TextResponse(t *testing.T) {
 }
 
 func TestWriteTo_EmptyBody(t *testing.T) {
-	response := NewStatusResponse(StatusOK)
+	response := NewStatusResponse(protocol.StatusOK)
 	var buf bytes.Buffer
 
 	if _, err := response.WriteTo(&buf); err != nil {
@@ -58,7 +59,7 @@ func TestWriteTo_EmptyBody(t *testing.T) {
 }
 
 func TestWriteTo_RecomputesContentLength(t *testing.T) {
-	response := NewTextResponse(StatusOK, "Hello")
+	response := NewTextResponse(protocol.StatusOK, "Hello")
 	response.Body = "Hello World!"
 	var buf bytes.Buffer
 
@@ -79,8 +80,8 @@ func TestWriteTo_RecomputesContentLength(t *testing.T) {
 }
 
 func TestWriteTo_OverridesStaleContentLengthHeader(t *testing.T) {
-	response := NewTextResponse(StatusOK, "Hello World!")
-	response.Headers[HeaderContentLength] = "999"
+	response := NewTextResponse(protocol.StatusOK, "Hello World!")
+	response.Headers[protocol.HeaderContentLength] = "999"
 	var buf bytes.Buffer
 
 	if _, err := response.WriteTo(&buf); err != nil {
@@ -99,12 +100,12 @@ func TestWriteTo_OverridesStaleContentLengthHeader(t *testing.T) {
 }
 
 func TestNewJSONResponse_SerializesBody(t *testing.T) {
-	response, err := NewJSONResponse(StatusOK, map[string]string{"hello": "world"})
+	response, err := NewJSONResponse(protocol.StatusOK, map[string]string{"hello": "world"})
 	if err != nil {
 		t.Fatalf("NewJSONResponse returned error: %v", err)
 	}
 
-	if got := response.Headers[HeaderContentType]; got != "application/json; charset=utf-8" {
+	if got := response.Headers[protocol.HeaderContentType]; got != "application/json; charset=utf-8" {
 		t.Fatalf("got content type %q, want application/json; charset=utf-8", got)
 	}
 
@@ -119,8 +120,8 @@ func TestNewErrorResponse_MapsBodyTooLargeToBadRequest(t *testing.T) {
 		t.Fatalf("NewErrorResponse returned error: %v", err)
 	}
 
-	if response.StatusCode != int(StatusBadRequest) {
-		t.Fatalf("got status %d, want %d", response.StatusCode, StatusBadRequest)
+	if response.StatusCode != int(protocol.StatusBadRequest) {
+		t.Fatalf("got status %d, want %d", response.StatusCode, protocol.StatusBadRequest)
 	}
 
 	if !strings.Contains(response.Body, `"error":"body_too_large"`) {
@@ -151,10 +152,10 @@ func (w *failAfterNWriter) Write(p []byte) (int, error) {
 var _ io.Writer = (*failAfterNWriter)(nil)
 
 func TestWriteTo_PropagatesWriterErrorAndPartialCount(t *testing.T) {
-	response := NewTextResponse(StatusOK, "Hello World!")
-	response.Headers[HeaderContentLength] = "999"
+	response := NewTextResponse(protocol.StatusOK, "Hello World!")
+	response.Headers[protocol.HeaderContentLength] = "999"
 
-	expected := stdErrors.New("write failed")
+	expected := errors.New("write failed")
 	writer := &failAfterNWriter{
 		remaining: 16,
 		err:       expected,
@@ -162,7 +163,7 @@ func TestWriteTo_PropagatesWriterErrorAndPartialCount(t *testing.T) {
 
 	n, err := response.WriteTo(writer)
 
-	if !stdErrors.Is(err, expected) {
+	if !errors.Is(err, expected) {
 		t.Fatalf("expected WriteTo to return the original writer error, got %v", err)
 	}
 

@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"strings"
 	"testing"
+
+	"github.com/harshithl1777/flock/internal/protocol"
 )
 
 func TestReadRequest_ParsesHeadersAndBody(t *testing.T) {
@@ -20,16 +22,16 @@ func TestReadRequest_ParsesHeadersAndBody(t *testing.T) {
 		t.Fatalf("ReadRequest returned error: %v", err)
 	}
 
-	if request.Method != Post {
-		t.Fatalf("got method %q, want %q", request.Method, Post)
+	if request.Method != protocol.Post {
+		t.Fatalf("got method %q, want %q", request.Method, protocol.Post)
 	}
 
 	if request.Path != "/submit" {
 		t.Fatalf("got path %q, want /submit", request.Path)
 	}
 
-	if request.Version != HTTP11 {
-		t.Fatalf("got version %q, want %q", request.Version, HTTP11)
+	if request.Version != protocol.HTTP11 {
+		t.Fatalf("got version %q, want %q", request.Version, protocol.HTTP11)
 	}
 
 	if got := request.Headers["Host"]; got != "localhost" {

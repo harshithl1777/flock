@@ -8,26 +8,18 @@ import (
 
 const configPath = "./flock.example.yaml"
 
-// readConfigYAML loads the server configuration.
-//
-// It terminates the process if the configuration cannot be loaded.
-func readConfigYAML() *config.Config {
-	cfg, err := config.Load(configPath)
-	if err != nil {
-		logger.Fatal("failed to load config", logger.Err(err))
-	}
-	return cfg
-}
-
 // main loads configuration, constructs the server, and starts serving requests.
 func main() {
 	defer logger.Sync()
 
-	cfg := readConfigYAML()
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		logger.Fatal("failed to load config", logger.Err(err))
+	}
 
 	srv := server.New(cfg)
 	logger.Info("starting server")
-	err := srv.Start()
+	err = srv.Start()
 
 	if err != nil {
 		logger.Fatal("failed to start server", logger.Err(err))

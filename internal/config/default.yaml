@@ -3,8 +3,9 @@ network:
 
 routes:
     - path: /
-      handler: health
       methods: [GET]
+      health:
+          code: 200
 
 timeouts:
     read: 5s

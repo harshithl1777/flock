@@ -8,12 +8,13 @@ import (
 	"strings"
 
 	"github.com/harshithl1777/flock/internal/errors"
+	"github.com/harshithl1777/flock/internal/protocol"
 )
 
 type Request struct {
-	Method  Method
+	Method  protocol.Method
 	Path    string
-	Version Version
+	Version protocol.Version
 	Headers map[string]string
 	Body    []byte
 }
@@ -55,17 +56,23 @@ func ReadRequest(reader *bufio.Reader) (*Request, *errors.OpError) {
 // parseRequestLine validates and splits a single HTTP request line.
 //
 // The line must contain exactly a method, path, and version.
-func parseRequestLine(line string) (Method, string, Version, *errors.OpError) {
+func parseRequestLine(line string) (protocol.Method, string, protocol.Version, *errors.OpError) {
+	const MaxRequestLineSize = 8 * 1024
+
 	line = strings.TrimRight(line, "\r\n")
+	if len(line) > MaxRequestLineSize {
+		return "", "", "", errors.New(errors.RequestLineTooLargeKind, "parse request line", "request line too large")
+	}
+
 	parts := strings.Split(line, " ")
 
 	if len(parts) != 3 {
 		return "", "", "", errors.Newf(errors.MalformedRequestLineKind, "parse request line", "malformed request line: %s", line)
 	}
 
-	method := Method(parts[0])
+	method := protocol.Method(parts[0])
 	path := parts[1]
-	version := Version(parts[2])
+	version := protocol.Version(parts[2])
 
 	if !method.IsValid() {
 		return "", "", "", errors.Newf(errors.UnsupportedHTTPMethodKind, "parse request line", "invalid http method: %s", method)
@@ -115,7 +122,7 @@ func parseHeaders(reader *bufio.Reader) (map[string]string, *errors.OpError) {
 		headers[textproto.CanonicalMIMEHeaderKey(key)] = value
 	}
 
-	if _, ok := headers[string(HeaderHost)]; !ok {
+	if _, ok := headers[string(protocol.HeaderHost)]; !ok {
 		return nil, errors.New(errors.MissingHostKind, "parse headers", "missing host header")
 	}
 
@@ -127,11 +134,11 @@ func parseHeaders(reader *bufio.Reader) (map[string]string, *errors.OpError) {
 // It currently supports only fixed-length bodies and rejects chunked transfer
 // encoding and bodies larger than the in-memory safety limit.
 func readBody(reader *bufio.Reader, headers map[string]string) ([]byte, *errors.OpError) {
-	if headers[string(HeaderTransferEncoding)] == "chunked" {
+	if headers[string(protocol.HeaderTransferEncoding)] == "chunked" {
 		return nil, errors.New(errors.UnsupportedTransferEncodingKind, "parse body", "chunked encoding not supported")
 	}
 
-	contentLengthStr := headers[string(HeaderContentLength)]
+	contentLengthStr := headers[string(protocol.HeaderContentLength)]
 	if contentLengthStr == "" {
 		return nil, nil
 	}

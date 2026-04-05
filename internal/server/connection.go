@@ -10,13 +10,16 @@ import (
 	"github.com/harshithl1777/flock/internal/errors"
 	"github.com/harshithl1777/flock/internal/http"
 	"github.com/harshithl1777/flock/internal/logger"
+	"github.com/harshithl1777/flock/internal/protocol"
+	"github.com/harshithl1777/flock/internal/router"
 	"go.uber.org/zap"
 )
 
 type Connection struct {
 	net.Conn
-	log        *zap.Logger
-	remoteAddr string
+	router *router.Router
+	log    *zap.Logger
+	remote string
 }
 
 type RequestContext struct {
@@ -25,7 +28,8 @@ type RequestContext struct {
 	log     *zap.Logger
 }
 
-// serve reads a single HTTP request, writes a response, and closes the connection.
+// serve reads one request, resolves it through the router, writes the response,
+// and closes the connection.
 func (c *Connection) serve() {
 	defer func() {
 		c.Close()
@@ -38,47 +42,57 @@ func (c *Connection) serve() {
 	ctx.log.Info("serve new request")
 
 	reader := bufio.NewReader(c)
-	request, err := http.ReadRequest(reader)
+	req, err := http.ReadRequest(reader)
 
 	if err != nil {
 		c.fail(ctx, err)
 		return
 	}
 
+	resp, handler := c.router.Resolve(req.Method, req.Path)
+	if resp != nil {
+		c.write(ctx, resp, nil)
+		return
+	}
+
+	if handler == nil {
+		c.write(ctx, http.NewStatusResponse(protocol.StatusInternalServerError), nil)
+	}
+
 	ctx.log.Info(
 		"route request",
-		logger.String("method", string(request.Method)),
-		logger.String("path", request.Path),
+		logger.String("method", string(req.Method)),
+		logger.String("path", req.Path),
+		logger.String("handler", handler.Name()),
 	)
 
-	r := http.NewStatusResponse(http.StatusOK)
-	c.write(ctx, r, nil)
+	resp = handler.Handle(req)
+	c.write(ctx, resp, nil)
 }
 
 // fail converts an operational error into an HTTP error response and writes it.
 func (c *Connection) fail(ctx *RequestContext, err *errors.OpError) {
 	r, marshalErr := http.NewErrorResponse(err)
 	if marshalErr != nil {
-		r = http.NewStatusResponse(http.StatusInternalServerError)
+		r = http.NewStatusResponse(protocol.StatusInternalServerError)
 		err = marshalErr
 	}
 
 	c.write(ctx, r, err)
 }
 
-// write finalizes standard response headers, writes the response, and logs the result.
+// write attaches the standard server headers, writes the response to the
+// connection, and records the result in the request log.
 func (c *Connection) write(ctx *RequestContext, r *http.Response, err *errors.OpError) {
-	r = r.WithHeader(http.HeaderServer, FullServerVersion()).
-		WithHeader(http.HeaderXRequestId, ctx.id).
-		WithHeader(http.HeaderConnection, "close")
+	r = r.WithHeader(protocol.HeaderServer, protocol.FullServerVersion()).
+		WithHeader(protocol.HeaderXRequestId, ctx.id).
+		WithHeader(protocol.HeaderConnection, "close")
 
 	_, writeErr := r.WriteTo(c)
 
-	latency := time.Since(ctx.startTs)
-
 	log := ctx.log.With(
 		logger.Int("status", r.StatusCode),
-		logger.Duration("latency", latency),
+		logger.Duration("latency", time.Since(ctx.startTs)),
 	)
 
 	if writeErr != nil {
@@ -96,13 +110,14 @@ func (c *Connection) write(ctx *RequestContext, r *http.Response, err *errors.Op
 	}
 }
 
-// newConnection wraps a net.Conn with server logging metadata.
-func newConnection(netConn net.Conn) *Connection {
+// NewConnection wraps a net.Conn with server logging metadata.
+func NewConnection(netConn net.Conn, router *router.Router) *Connection {
 	remoteAddr := netConn.RemoteAddr().String()
 	return &Connection{
-		Conn:       netConn,
-		log:        logger.With(logger.String("remote", remoteAddr)),
-		remoteAddr: netConn.RemoteAddr().String(),
+		Conn:   netConn,
+		router: router,
+		log:    logger.With(logger.String("remote", remoteAddr)),
+		remote: netConn.RemoteAddr().String(),
 	}
 }
 
@@ -122,5 +137,5 @@ var requestSequence atomic.Uint64
 // newRequestId returns a monotonically increasing request identifier with a time prefix.
 func newRequestId(ts time.Time) string {
 	n := requestSequence.Add(1)
-	return fmt.Sprintf("req_%d_%d", ts.UnixMilli(), n)
+	return fmt.Sprintf("r_%d_%d", ts.UnixMilli(), n)
 }

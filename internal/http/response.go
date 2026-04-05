@@ -7,30 +7,18 @@ import (
 	"strconv"
 
 	"github.com/harshithl1777/flock/internal/errors"
+	"github.com/harshithl1777/flock/internal/protocol"
 )
 
 type Response struct {
 	StatusCode int
 	StatusText string
-	Headers    map[HeaderKey]string
+	Headers    map[protocol.HeaderKey]string
 	Body       string
 }
 
-// newResponse returns a response initialized with the supplied status code.
-//
-// It derives the HTTP reason phrase from code and allocates the headers map.
-func newResponse(code StatusCode) *Response {
-	const initialHeadersMapSize = 16
-	return &Response{
-		StatusCode: int(code),
-		StatusText: statusText[code],
-		Headers:    make(map[HeaderKey]string, initialHeadersMapSize),
-		Body:       "",
-	}
-}
-
 // WithHeader stores or replaces a single response header.
-func (r *Response) WithHeader(key HeaderKey, value string) *Response {
+func (r *Response) WithHeader(key protocol.HeaderKey, value string) *Response {
 	r.Headers[key] = value
 	return r
 }
@@ -52,7 +40,7 @@ func (response *Response) WriteTo(w io.Writer) (int64, error) {
 	cw := &countingWriter{w: w}
 	bw := bufio.NewWriter(cw)
 
-	bw.WriteString(string(HTTP11))
+	bw.WriteString(string(protocol.HTTP11))
 	bw.WriteByte(' ')
 
 	var b [20]byte // Uses a local buffer to avoid string allocation for status code
@@ -62,7 +50,7 @@ func (response *Response) WriteTo(w io.Writer) (int64, error) {
 	bw.WriteString("\r\n")
 
 	for headerKey, headerValue := range response.Headers {
-		if headerKey == HeaderContentLength {
+		if headerKey == protocol.HeaderContentLength {
 			continue
 		}
 		bw.WriteString(string(headerKey))
@@ -71,7 +59,7 @@ func (response *Response) WriteTo(w io.Writer) (int64, error) {
 		bw.WriteString("\r\n")
 	}
 
-	bw.WriteString(string(HeaderContentLength) + ": ")
+	bw.WriteString(string(protocol.HeaderContentLength) + ": ")
 	bw.Write(strconv.AppendInt(b[:0], int64(len(response.Body)), 10))
 	bw.WriteString("\r\n\r\n")
 
@@ -94,35 +82,35 @@ func (response *Response) WriteTo(w io.Writer) (int64, error) {
 }
 
 // NewTextResponse returns a text/plain response with the provided body.
-func NewTextResponse(code StatusCode, body string) *Response {
+func NewTextResponse(code protocol.StatusCode, body string) *Response {
 	return newResponse(code).
-		WithHeader(HeaderContentType, "text/plain; charset=utf-8").
+		WithHeader(protocol.HeaderContentType, "text/plain; charset=utf-8").
 		WithBody(body)
 }
 
 // NewHTMLResponse returns a text/html response with the provided body.
-func NewHTMLResponse(code StatusCode, body string) *Response {
+func NewHTMLResponse(code protocol.StatusCode, body string) *Response {
 	return newResponse(code).
-		WithHeader(HeaderContentType, "text/html; charset=utf-8").
+		WithHeader(protocol.HeaderContentType, "text/html; charset=utf-8").
 		WithBody(body)
 }
 
 // NewJSONResponse returns a JSON response for the provided value.
-func NewJSONResponse(code StatusCode, data interface{}) (*Response, *errors.OpError) {
+func NewJSONResponse(code protocol.StatusCode, data interface{}) (*Response, *errors.OpError) {
 	body, err := json.Marshal(data)
 	if err != nil {
 		return nil, errors.Wrap(errors.ResponseJSONSerializationKind, "serialize json", err)
 	}
 
 	return newResponse(code).
-		WithHeader(HeaderContentType, "application/json; charset=utf-8").
+		WithHeader(protocol.HeaderContentType, "application/json; charset=utf-8").
 		WithBody(string(body)), nil
 }
 
 // NewStatusResponse returns a response with no body-specific headers or payload.
-func NewStatusResponse(code StatusCode) *Response {
+func NewStatusResponse(code protocol.StatusCode) *Response {
 	return newResponse(code).
-		WithHeader(HeaderContentType, "text/plain; charset=utf-8").
+		WithHeader(protocol.HeaderContentType, "text/plain; charset=utf-8").
 		WithBody("")
 }
 
@@ -136,32 +124,51 @@ func NewErrorResponse(err *errors.OpError) (*Response, *errors.OpError) {
 		Description: err.Kind.Description(),
 	}
 
-	var code StatusCode
+	var code protocol.StatusCode
 
 	switch err.Kind {
 	case errors.MalformedRequestLineKind:
-		code = StatusBadRequest
+		code = protocol.StatusBadRequest
 	case errors.MalformedHeaderKind:
-		code = StatusBadRequest
+		code = protocol.StatusBadRequest
 	case errors.MissingHostKind:
-		code = StatusBadRequest
+		code = protocol.StatusBadRequest
 	case errors.UnsupportedHTTPVersionKind:
-		code = StatusHTTPVersionNotSupported
+		code = protocol.StatusHTTPVersionNotSupported
 	case errors.InvalidContentLengthKind:
-		code = StatusBadRequest
+		code = protocol.StatusBadRequest
 	case errors.UnsupportedTransferEncodingKind:
-		code = StatusBadRequest
+		code = protocol.StatusBadRequest
 	case errors.IncompleteBodyKind:
-		code = StatusBadRequest
+		code = protocol.StatusBadRequest
+	case errors.RequestLineTooLargeKind:
+		code = protocol.StatusBadRequest
 	case errors.HeadersTooLargeKind:
-		code = StatusRequestHeaderFieldsTooLarge
+		code = protocol.StatusRequestHeaderFieldsTooLarge
+	case errors.MethodNotAllowedKind:
+		code = protocol.StatusMethodNotAllowed
 	case errors.BodyTooLargeKind:
-		code = StatusBadRequest
+		code = protocol.StatusBadRequest
+	case errors.NotFoundKind:
+		code = protocol.StatusNotFound
 	default:
-		code = StatusInternalServerError
+		code = protocol.StatusInternalServerError
 	}
 
 	return NewJSONResponse(code, eb)
+}
+
+// newResponse returns a response initialized with the supplied status code.
+//
+// It derives the HTTP reason phrase from code and allocates the headers map.
+func newResponse(code protocol.StatusCode) *Response {
+	const initialHeadersMapSize = 16
+	return &Response{
+		StatusCode: int(code),
+		StatusText: protocol.StatusText[code],
+		Headers:    make(map[protocol.HeaderKey]string, initialHeadersMapSize),
+		Body:       "",
+	}
 }
 
 var _ io.Writer = (*countingWriter)(nil)

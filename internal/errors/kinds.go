@@ -13,8 +13,11 @@ const (
 	InvalidContentLengthKind
 	UnsupportedTransferEncodingKind
 	IncompleteBodyKind
+	RequestLineTooLargeKind
 	HeadersTooLargeKind
 	BodyTooLargeKind
+	MethodNotAllowedKind
+	NotFoundKind
 	ConnectionWriteKind
 	ResponseJSONSerializationKind
 	InternalServerErrorKind
@@ -43,10 +46,16 @@ func (k ErrorKind) String() string {
 		return "unsupported_transfer_encoding"
 	case IncompleteBodyKind:
 		return "incomplete_body"
+	case RequestLineTooLargeKind:
+		return "request_line_too_large"
 	case HeadersTooLargeKind:
 		return "headers_too_large"
 	case BodyTooLargeKind:
 		return "body_too_large"
+	case MethodNotAllowedKind:
+		return "method_not_allowed"
+	case NotFoundKind:
+		return "not_found"
 	case ConnectionWriteKind:
 		return "connection_write"
 	case InternalServerErrorKind:
@@ -81,10 +90,16 @@ func (k ErrorKind) Description() string {
 		return "Transfer-Encoding not supported"
 	case IncompleteBodyKind:
 		return "request body is incomplete"
+	case RequestLineTooLargeKind:
+		return "request line exceeds size limit"
 	case HeadersTooLargeKind:
 		return "request headers exceed size limit"
 	case BodyTooLargeKind:
 		return "request body exceeds size limit"
+	case MethodNotAllowedKind:
+		return "requested method not allowed on this route"
+	case NotFoundKind:
+		return "requested resource not found"
 	case ConnectionWriteKind:
 		return "failed to write to connection"
 	case ResponseJSONSerializationKind:

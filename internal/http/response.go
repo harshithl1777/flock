@@ -135,6 +135,8 @@ func NewErrorResponse(err *errors.OpError) (*Response, *errors.OpError) {
 		code = protocol.StatusBadRequest
 	case errors.UnsupportedHTTPVersionKind:
 		code = protocol.StatusHTTPVersionNotSupported
+	case errors.UnsupportedHTTPMethodKind:
+		code = protocol.StatusNotImplemented
 	case errors.InvalidContentLengthKind:
 		code = protocol.StatusBadRequest
 	case errors.UnsupportedTransferEncodingKind:
@@ -165,7 +167,7 @@ func newResponse(code protocol.StatusCode) *Response {
 	const initialHeadersMapSize = 16
 	return &Response{
 		StatusCode: int(code),
-		StatusText: protocol.StatusText[code],
+		StatusText: code.Text(),
 		Headers:    make(map[protocol.HeaderKey]string, initialHeadersMapSize),
 		Body:       "",
 	}

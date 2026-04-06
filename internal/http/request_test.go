@@ -2,11 +2,30 @@ package http
 
 import (
 	"bufio"
+	stderrors "errors"
 	"strings"
 	"testing"
 
+	flockerrors "github.com/harshithl1777/flock/internal/errors"
 	"github.com/harshithl1777/flock/internal/protocol"
 )
+
+func assertRequestErrorKind(t *testing.T, err error, want flockerrors.ErrorKind) {
+	t.Helper()
+
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+
+	var opErr *flockerrors.OpError
+	if !stderrors.As(err, &opErr) {
+		t.Fatalf("expected *errors.OpError, got %T", err)
+	}
+
+	if opErr.Kind != want {
+		t.Fatalf("got error kind %s, want %s", opErr.Kind, want)
+	}
+}
 
 func TestReadRequest_ParsesHeadersAndBody(t *testing.T) {
 	raw := "" +
@@ -55,13 +74,14 @@ func TestReadRequest_InvalidRequestLine(t *testing.T) {
 	raw := "TRACE / HTTP/1.1\r\nHost: localhost\r\n\r\n"
 
 	_, err := ReadRequest(bufio.NewReader(strings.NewReader(raw)))
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
+	assertRequestErrorKind(t, err, flockerrors.UnsupportedHTTPMethodKind)
+}
 
-	if got := err.Error(); !strings.Contains(got, "invalid http method: TRACE") {
-		t.Fatalf("unexpected error: %v", got)
-	}
+func TestReadRequest_RejectsUnsupportedHTTPVersion(t *testing.T) {
+	raw := "GET / HTTP/2.0\r\nHost: localhost\r\n\r\n"
+
+	_, err := ReadRequest(bufio.NewReader(strings.NewReader(raw)))
+	assertRequestErrorKind(t, err, flockerrors.UnsupportedHTTPVersionKind)
 }
 
 func TestReadRequest_RejectsChunkedTransferEncoding(t *testing.T) {
@@ -72,13 +92,7 @@ func TestReadRequest_RejectsChunkedTransferEncoding(t *testing.T) {
 		"\r\n"
 
 	_, err := ReadRequest(bufio.NewReader(strings.NewReader(raw)))
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-
-	if got := err.Error(); !strings.Contains(got, "chunked encoding not supported") {
-		t.Fatalf("unexpected error: %v", got)
-	}
+	assertRequestErrorKind(t, err, flockerrors.UnsupportedTransferEncodingKind)
 }
 
 func TestReadRequest_RequiresHostHeader(t *testing.T) {
@@ -87,11 +101,5 @@ func TestReadRequest_RequiresHostHeader(t *testing.T) {
 		"\r\n"
 
 	_, err := ReadRequest(bufio.NewReader(strings.NewReader(raw)))
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-
-	if got := err.Error(); !strings.Contains(got, "missing host header") {
-		t.Fatalf("unexpected error: %v", got)
-	}
+	assertRequestErrorKind(t, err, flockerrors.MissingHostKind)
 }

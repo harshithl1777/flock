@@ -49,14 +49,15 @@ func (c *Connection) serve() {
 		return
 	}
 
-	resp, handler := c.router.Resolve(req.Method, req.Path)
-	if resp != nil {
-		c.write(ctx, resp, nil)
+	handler, errResp := c.router.Resolve(req.Method, req.Path)
+	if errResp != nil {
+		c.write(ctx, errResp, nil)
 		return
 	}
 
 	if handler == nil {
 		c.write(ctx, http.NewStatusResponse(protocol.StatusInternalServerError), nil)
+		return
 	}
 
 	ctx.log.Info(
@@ -66,7 +67,7 @@ func (c *Connection) serve() {
 		logger.String("handler", handler.Name()),
 	)
 
-	resp = handler.Handle(req)
+	resp := handler.Handle(req)
 	c.write(ctx, resp, nil)
 }
 
@@ -117,7 +118,7 @@ func NewConnection(netConn net.Conn, router *router.Router) *Connection {
 		Conn:   netConn,
 		router: router,
 		log:    logger.With(logger.String("remote", remoteAddr)),
-		remote: netConn.RemoteAddr().String(),
+		remote: remoteAddr,
 	}
 }
 

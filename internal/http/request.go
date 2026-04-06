@@ -66,7 +66,7 @@ func parseRequestLine(line string) (protocol.Method, string, protocol.Version, *
 
 	parts := strings.Split(line, " ")
 
-	if len(parts) != 3 {
+	if len(parts) != 3 || parts[0] == "" || parts[1] == "" || parts[2] == "" {
 		return "", "", "", errors.Newf(errors.MalformedRequestLineKind, "parse request line", "malformed request line: %s", line)
 	}
 

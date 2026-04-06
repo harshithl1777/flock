@@ -104,7 +104,9 @@ func (k ErrorKind) Description() string {
 		return "failed to write to connection"
 	case ResponseJSONSerializationKind:
 		return "failed to serialize response as JSON"
+	case InternalServerErrorKind:
+		return "an internal server error occurred"
 	default:
-		return "an unknown error occurred"
+		return "an internal server error occurred"
 	}
 }

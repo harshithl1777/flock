@@ -26,7 +26,7 @@ var healthStartedAt = time.Now()
 func (h *HealthHandler) Handle(req *http.Request) *http.Response {
 	response, err := http.NewJSONResponse(h.code, HealthJSON{
 		Status:  "pass",
-		Version: protocol.ServerVersion,
+		Version: protocol.FullServerVersion(),
 		Uptime:  time.Since(healthStartedAt).Round(time.Second).String(),
 	})
 

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	flockerrors "github.com/harshithl1777/flock/internal/errors"
+	stderrors "github.com/harshithl1777/flock/internal/errors"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -14,10 +14,7 @@ import (
 func TestNewLogger_DevelopmentUsesConsoleEncoder(t *testing.T) {
 	var buf bytes.Buffer
 
-	log, err := newLogger("development", zapcore.AddSync(&buf), false)
-	if err != nil {
-		t.Fatalf("newLogger returned error: %v", err)
-	}
+	log := newLogger("development", zapcore.AddSync(&buf), false)
 
 	log.Info("request processed", zap.String("method", "GET"), zap.String("path", "/health"))
 
@@ -47,10 +44,7 @@ func TestNewLogger_DevelopmentUsesConsoleEncoder(t *testing.T) {
 func TestNewLogger_ProductionUsesJSONEncoder(t *testing.T) {
 	var buf bytes.Buffer
 
-	log, err := newLogger("production", zapcore.AddSync(&buf), false)
-	if err != nil {
-		t.Fatalf("newLogger returned error: %v", err)
-	}
+	log := newLogger("production", zapcore.AddSync(&buf), false)
 
 	log.Info("request processed", zap.String("method", "GET"), zap.String("path", "/health"))
 
@@ -77,10 +71,7 @@ func TestNewLogger_ProductionUsesJSONEncoder(t *testing.T) {
 func TestNewLogger_EmptyEnvDefaultsToJSONEncoder(t *testing.T) {
 	var buf bytes.Buffer
 
-	log, err := newLogger("", zapcore.AddSync(&buf), false)
-	if err != nil {
-		t.Fatalf("newLogger returned error: %v", err)
-	}
+	log := newLogger("", zapcore.AddSync(&buf), false)
 
 	log.Info("request processed", zap.String("method", "GET"))
 
@@ -103,12 +94,9 @@ func TestNewLogger_EmptyEnvDefaultsToJSONEncoder(t *testing.T) {
 func TestErr_OpErrorUsesStructuredObject(t *testing.T) {
 	var buf bytes.Buffer
 
-	log, err := newLogger("production", zapcore.AddSync(&buf), false)
-	if err != nil {
-		t.Fatalf("newLogger returned error: %v", err)
-	}
+	log := newLogger("production", zapcore.AddSync(&buf), false)
 
-	log.Error("request failed", Err(flockerrors.Newf(flockerrors.MalformedRequestLineKind, "read request", "invalid http method: %s", "TRACE")))
+	log.Error("request failed", Err(stderrors.Newf(stderrors.MalformedRequestLineKind, "read request", "invalid http method: %s", "TRACE")))
 
 	got := strings.TrimSpace(buf.String())
 
@@ -134,10 +122,7 @@ func TestErr_OpErrorUsesStructuredObject(t *testing.T) {
 func TestNewLogger_DevelopmentAlignsJSONContextColumn(t *testing.T) {
 	var buf bytes.Buffer
 
-	log, err := newLogger("development", zapcore.AddSync(&buf), false)
-	if err != nil {
-		t.Fatalf("newLogger returned error: %v", err)
-	}
+	log := newLogger("development", zapcore.AddSync(&buf), false)
 
 	log.Info("starting server")
 	log.Error("test error", zap.String("who", "me"))

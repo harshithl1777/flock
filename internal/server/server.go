@@ -1,6 +1,7 @@
 package server
 
 import (
+	stderrors "errors"
 	"net"
 	"strconv"
 
@@ -41,6 +42,10 @@ func (srv *Server) Start() *errors.OpError {
 	for {
 		netConn, err := srv.ln.Accept()
 		if err != nil {
+			if stderrors.Is(err, net.ErrClosed) {
+				return nil
+			}
+
 			logger.Error("accept new connection", logger.Err(err))
 			continue
 		}

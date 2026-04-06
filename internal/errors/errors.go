@@ -35,7 +35,7 @@ func New(kind ErrorKind, op string, msg string) *OpError {
 	return &OpError{
 		Kind: kind,
 		Op:   op,
-		Err:  fmt.Errorf("%s", msg),
+		Err:  errors.New(msg),
 	}
 }
 

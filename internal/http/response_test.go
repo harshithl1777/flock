@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	flockerrors "github.com/harshithl1777/flock/internal/errors"
+	stderrors "github.com/harshithl1777/flock/internal/errors"
 	"github.com/harshithl1777/flock/internal/protocol"
 )
 
@@ -115,7 +115,7 @@ func TestNewJSONResponse_SerializesBody(t *testing.T) {
 }
 
 func TestNewErrorResponse_MapsBodyTooLargeToBadRequest(t *testing.T) {
-	response, err := NewErrorResponse(flockerrors.New(flockerrors.BodyTooLargeKind, "parse body", "too large"))
+	response, err := NewErrorResponse(stderrors.New(stderrors.BodyTooLargeKind, "parse body", "too large"))
 	if err != nil {
 		t.Fatalf("NewErrorResponse returned error: %v", err)
 	}

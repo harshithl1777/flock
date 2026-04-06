@@ -5,7 +5,7 @@ import (
 	"os"
 	"time"
 
-	flockerrors "github.com/harshithl1777/flock/internal/errors"
+	stderrors "github.com/harshithl1777/flock/internal/errors"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -22,23 +22,19 @@ func init() {
 
 // mustNewLogger constructs a logger and panics if configuration fails.
 func mustNewLogger(env string, sink zapcore.WriteSyncer, colorize bool) *zap.Logger {
-	logger, err := newLogger(env, sink, colorize)
-	if err != nil {
-		panic(err)
-	}
-
+	logger := newLogger(env, sink, colorize)
 	return logger
 }
 
 // newLogger builds a zap logger for the configured environment.
-func newLogger(env string, sink zapcore.WriteSyncer, colorize bool) (*zap.Logger, error) {
+func newLogger(env string, sink zapcore.WriteSyncer, colorize bool) *zap.Logger {
 	encoder := newEncoder(env, colorize)
 	core := zapcore.NewCore(encoder, sink, zap.InfoLevel)
 	if env == "development" {
 		core = &messagePaddingCore{Core: core, width: messageWidth}
 	}
 
-	return zap.New(core, zap.AddCaller(), zap.AddCallerSkip(1)), nil
+	return zap.New(core, zap.AddCaller(), zap.AddCallerSkip(1))
 }
 
 // Sync flushes any buffered log entries to their destination.
@@ -92,7 +88,7 @@ func Any(key string, value any) zap.Field {
 
 // Err constructs an error field for structured logs.
 func Err(err error) zap.Field {
-	var opErr *flockerrors.OpError
+	var opErr *stderrors.OpError
 	if errors.As(err, &opErr) {
 		return zap.Object("error", opErr)
 	}

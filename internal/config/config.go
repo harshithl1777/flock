@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	_ "embed"
 	"os"
 	"time"
@@ -55,6 +56,16 @@ func (nc NetworkConfig) Validate() *errors.OpError {
 	return nil
 }
 
+func (tc TimeoutsConfig) Validate() *errors.OpError {
+	if tc.Read <= 0 {
+		return errors.Newf(errors.ConfigLoadKind, "validate timeouts config", "invalid read timeout: %s", tc.Read)
+	} else if tc.Write <= 0 {
+		return errors.Newf(errors.ConfigLoadKind, "validate timeouts config", "invalid write timeout: %s", tc.Write)
+	}
+
+	return nil
+}
+
 func (o *HandlerHealthOptions) Validate() *errors.OpError {
 	if !o.Code.IsValid() {
 		return errors.Newf(errors.ConfigLoadKind, "validate health options", "invalid code: %d", o.Code)
@@ -72,6 +83,9 @@ func (o *HandlerStatusOptions) Validate() *errors.OpError {
 func (o *HandlerRedirectOptions) Validate() *errors.OpError {
 	if !o.Code.IsValid() {
 		return errors.Newf(errors.ConfigLoadKind, "validate redirect options", "invalid code: %d", o.Code)
+	}
+	if o.Code < protocol.StatusMultipleChoices || o.Code >= protocol.StatusBadRequest {
+		return errors.Newf(errors.ConfigLoadKind, "validate redirect options", "redirect code must be 3xx, received: %d", o.Code)
 	}
 	if o.Destination == "" || o.Destination[0] != '/' {
 		return errors.Newf(errors.ConfigLoadKind, "validate redirect options", "invalid path: %s", o.Destination)
@@ -126,6 +140,10 @@ func (cfg *Config) Validate() *errors.OpError {
 		return err
 	}
 
+	if err := cfg.Timeouts.Validate(); err != nil {
+		return err
+	}
+
 	for _, rc := range cfg.Routes {
 		if err := rc.Validate(); err != nil {
 			return err
@@ -156,7 +174,11 @@ func Load(configFilePath string) (*Config, *errors.OpError) {
 	}
 
 	var cfg Config
-	if err := yaml.Unmarshal(data, &cfg); err != nil {
+	reader := bytes.NewReader(data)
+	dec := yaml.NewDecoder(reader)
+	dec.KnownFields(true)
+
+	if err := dec.Decode(&cfg); err != nil {
 		return nil, errors.Wrap(errors.ConfigLoadKind, "parse file", err)
 	}
 

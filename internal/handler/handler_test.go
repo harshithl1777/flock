@@ -35,7 +35,7 @@ func TestHealthHandlerHandle_ReturnsJSONHealthPayload(t *testing.T) {
 
 	for _, part := range []string{
 		`"status":"pass"`,
-		`"version":"1.0"`,
+		`"version":"Flock/1.0"`,
 		`"uptime":"2h45m12s"`,
 	} {
 		if !strings.Contains(response.Body, part) {

@@ -27,10 +27,10 @@ func newTestRouter() *Router {
 }
 
 func TestResolve_Dispatch(t *testing.T) {
-	response, routeHandler := newTestRouter().Resolve(protocol.Get, "/")
+	routeHandler, errResponse := newTestRouter().Resolve(protocol.Get, "/")
 
-	if response != nil {
-		t.Fatalf("got response %v, want nil", response)
+	if errResponse != nil {
+		t.Fatalf("got errResponse %v, want nil", errResponse)
 	}
 
 	if routeHandler == nil {
@@ -39,10 +39,10 @@ func TestResolve_Dispatch(t *testing.T) {
 }
 
 func TestResolve_HeadAllowedByGet(t *testing.T) {
-	response, routeHandler := newTestRouter().Resolve(protocol.Head, "/")
+	routeHandler, errResponse := newTestRouter().Resolve(protocol.Head, "/")
 
-	if response != nil {
-		t.Fatalf("got response %v, want nil", response)
+	if errResponse != nil {
+		t.Fatalf("got errResponse %v, want nil", errResponse)
 	}
 
 	if routeHandler == nil {
@@ -51,57 +51,57 @@ func TestResolve_HeadAllowedByGet(t *testing.T) {
 }
 
 func TestResolve_MethodNotAllowed(t *testing.T) {
-	response, routeHandler := newTestRouter().Resolve(protocol.Post, "/")
+	routeHandler, errResponse := newTestRouter().Resolve(protocol.Post, "/")
 
 	if routeHandler != nil {
 		t.Fatalf("got handler %v, want nil", routeHandler)
 	}
 
-	if response == nil {
-		t.Fatal("expected method not allowed response")
+	if errResponse == nil {
+		t.Fatal("expected method not allowed errResponse")
 	}
 
-	if response.StatusCode != int(protocol.StatusMethodNotAllowed) {
-		t.Fatalf("got status %d, want %d", response.StatusCode, protocol.StatusMethodNotAllowed)
+	if errResponse.StatusCode != int(protocol.StatusMethodNotAllowed) {
+		t.Fatalf("got status %d, want %d", errResponse.StatusCode, protocol.StatusMethodNotAllowed)
 	}
 
-	if got := response.Headers[protocol.HeaderAllow]; got != "GET, HEAD" {
+	if got := errResponse.Headers[protocol.HeaderAllow]; got != "GET, HEAD" {
 		t.Fatalf("got allow header %q, want %q", got, "GET, HEAD")
 	}
 }
 
 func TestResolve_OptionsReturnsOptionsDecision(t *testing.T) {
-	response, routeHandler := newTestRouter().Resolve(protocol.Options, "/")
+	routeHandler, errResponse := newTestRouter().Resolve(protocol.Options, "/")
 
 	if routeHandler != nil {
 		t.Fatalf("got handler %v, want nil", routeHandler)
 	}
 
-	if response == nil {
-		t.Fatal("expected options response")
+	if errResponse == nil {
+		t.Fatal("expected options errResponse")
 	}
 
-	if response.StatusCode != int(protocol.StatusNoContent) {
-		t.Fatalf("got status %d, want %d", response.StatusCode, protocol.StatusNoContent)
+	if errResponse.StatusCode != int(protocol.StatusNoContent) {
+		t.Fatalf("got status %d, want %d", errResponse.StatusCode, protocol.StatusNoContent)
 	}
 
-	if got := response.Headers[protocol.HeaderAllow]; got != "GET, HEAD" {
+	if got := errResponse.Headers[protocol.HeaderAllow]; got != "GET, HEAD" {
 		t.Fatalf("got allow header %q, want %q", got, "GET, HEAD")
 	}
 }
 
 func TestResolve_NotFound(t *testing.T) {
-	response, routeHandler := newTestRouter().Resolve(protocol.Get, "/missing")
+	routeHandler, errResponse := newTestRouter().Resolve(protocol.Get, "/missing")
 
 	if routeHandler != nil {
 		t.Fatalf("got handler %v, want nil", routeHandler)
 	}
 
-	if response == nil {
-		t.Fatal("expected not found response")
+	if errResponse == nil {
+		t.Fatal("expected not found errResponse")
 	}
 
-	if response.StatusCode != int(protocol.StatusNotFound) {
-		t.Fatalf("got status %d, want %d", response.StatusCode, protocol.StatusNotFound)
+	if errResponse.StatusCode != int(protocol.StatusNotFound) {
+		t.Fatalf("got status %d, want %d", errResponse.StatusCode, protocol.StatusNotFound)
 	}
 }

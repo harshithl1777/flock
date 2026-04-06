@@ -1,11 +1,13 @@
 package config
 
 import (
+	stderrors "errors"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/harshithl1777/flock/internal/errors"
 	"github.com/harshithl1777/flock/internal/protocol"
 )
 
@@ -132,6 +134,11 @@ func TestLoad_MissingFile(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
+
+	var opErr *errors.OpError
+	if !stderrors.As(err, &opErr) {
+		t.Fatalf("expected *errors.OpError, got %T", err)
+	}
 }
 
 func TestLoad_MissingPort(t *testing.T) {
@@ -151,5 +158,10 @@ timeouts:
 	_, err := Load(path)
 	if err == nil {
 		t.Fatal("expected error, got nil")
+	}
+
+	var opErr *errors.OpError
+	if !stderrors.As(err, &opErr) {
+		t.Fatalf("expected *errors.OpError, got %T", err)
 	}
 }

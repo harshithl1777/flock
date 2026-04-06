@@ -1,7 +1,5 @@
 package protocol
 
-import "fmt"
-
 type StatusCode int
 
 // Status codes
@@ -73,8 +71,22 @@ const (
 	StatusNetworkAuthenticationRequired StatusCode = 511
 )
 
-// statusText maps codes to their official HTTP strings
-var StatusText = map[StatusCode]string{
+// IsValid reports whether code is one of the supported HTTP status codes.
+func (code StatusCode) IsValid() bool {
+	_, ok := statusText[code]
+	return ok
+}
+
+// Text returns the text for a StatusCode.
+func (code StatusCode) Text() string {
+	if text, ok := statusText[code]; ok {
+		return text
+	}
+	return ""
+}
+
+// StatusText maps codes to their official HTTP strings
+var statusText = map[StatusCode]string{
 	StatusContinue:           "Continue",
 	StatusSwitchingProtocols: "Switching Protocols",
 	StatusProcessing:         "Processing",
@@ -140,18 +152,4 @@ var StatusText = map[StatusCode]string{
 	StatusLoopDetected:                  "Loop Detected",
 	StatusNotExtended:                   "Not Extended",
 	StatusNetworkAuthenticationRequired: "Network Authentication Required",
-}
-
-// IsValid reports whether code is one of the supported HTTP status codes.
-func (code StatusCode) IsValid() bool {
-	_, ok := StatusText[code]
-	return ok
-}
-
-// StatusText returns the text for a StatusCode.
-func (code StatusCode) Text() string {
-	if text, ok := StatusText[code]; ok {
-		return fmt.Sprintf("%d %s", code, text)
-	}
-	return fmt.Sprintf("%d", code)
 }

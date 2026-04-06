@@ -1,0 +1,12 @@
+network:
+    port: 8080
+
+routes:
+    - path: /
+      methods: [GET]
+      health:
+          code: 200
+
+timeouts:
+    read: 5s
+    write: 10s

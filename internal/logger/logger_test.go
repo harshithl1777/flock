@@ -119,6 +119,25 @@ func TestErr_OpErrorUsesStructuredObject(t *testing.T) {
 	}
 }
 
+func TestByteString_LogsBytesAsString(t *testing.T) {
+	var buf bytes.Buffer
+
+	log := newLogger("production", zapcore.AddSync(&buf), false)
+
+	log.Error("panic recovered", ByteString("stack", []byte("goroutine 1\nmain.main")))
+
+	got := strings.TrimSpace(buf.String())
+
+	var decoded map[string]any
+	if err := json.Unmarshal([]byte(got), &decoded); err != nil {
+		t.Fatalf("expected JSON log output, got %q: %v", got, err)
+	}
+
+	if decoded["stack"] != "goroutine 1\nmain.main" {
+		t.Fatalf("got stack %v, want byte string stack", decoded["stack"])
+	}
+}
+
 func TestNewLogger_DevelopmentAlignsJSONContextColumn(t *testing.T) {
 	var buf bytes.Buffer
 

@@ -6,18 +6,18 @@ import (
 	"strings"
 	"testing"
 
-	flockerrors "github.com/harshithl1777/flock/internal/errors"
+	"github.com/harshithl1777/flock/internal/errors"
 	"github.com/harshithl1777/flock/internal/protocol"
 )
 
-func assertRequestErrorKind(t *testing.T, err error, want flockerrors.ErrorKind) {
+func assertRequestErrorKind(t *testing.T, err error, want errors.ErrorKind) {
 	t.Helper()
 
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
 
-	var opErr *flockerrors.OpError
+	var opErr *errors.OpError
 	if !stderrors.As(err, &opErr) {
 		t.Fatalf("expected *errors.OpError, got %T", err)
 	}
@@ -74,14 +74,14 @@ func TestReadRequest_InvalidRequestLine(t *testing.T) {
 	raw := "TRACE / HTTP/1.1\r\nHost: localhost\r\n\r\n"
 
 	_, err := ReadRequest(bufio.NewReader(strings.NewReader(raw)))
-	assertRequestErrorKind(t, err, flockerrors.UnsupportedHTTPMethodKind)
+	assertRequestErrorKind(t, err, errors.UnsupportedHTTPMethodKind)
 }
 
 func TestReadRequest_RejectsUnsupportedHTTPVersion(t *testing.T) {
 	raw := "GET / HTTP/2.0\r\nHost: localhost\r\n\r\n"
 
 	_, err := ReadRequest(bufio.NewReader(strings.NewReader(raw)))
-	assertRequestErrorKind(t, err, flockerrors.UnsupportedHTTPVersionKind)
+	assertRequestErrorKind(t, err, errors.UnsupportedHTTPVersionKind)
 }
 
 func TestReadRequest_RejectsChunkedTransferEncoding(t *testing.T) {
@@ -92,7 +92,17 @@ func TestReadRequest_RejectsChunkedTransferEncoding(t *testing.T) {
 		"\r\n"
 
 	_, err := ReadRequest(bufio.NewReader(strings.NewReader(raw)))
-	assertRequestErrorKind(t, err, flockerrors.UnsupportedTransferEncodingKind)
+	assertRequestErrorKind(t, err, errors.UnsupportedTransferEncodingKind)
+}
+
+func TestReadRequest_RejectsMalformedHeader(t *testing.T) {
+	raw := "" +
+		"GET / HTTP/1.1\r\n" +
+		"Host localhost\r\n" +
+		"\r\n"
+
+	_, err := ReadRequest(bufio.NewReader(strings.NewReader(raw)))
+	assertRequestErrorKind(t, err, errors.MalformedHeaderKind)
 }
 
 func TestReadRequest_RequiresHostHeader(t *testing.T) {
@@ -101,5 +111,5 @@ func TestReadRequest_RequiresHostHeader(t *testing.T) {
 		"\r\n"
 
 	_, err := ReadRequest(bufio.NewReader(strings.NewReader(raw)))
-	assertRequestErrorKind(t, err, flockerrors.MissingHostKind)
+	assertRequestErrorKind(t, err, errors.MissingHostKind)
 }

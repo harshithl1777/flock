@@ -86,7 +86,7 @@ func parseRequestLine(line string) (protocol.Method, string, protocol.Version, *
 // parseHeaders reads header lines until the terminating blank line.
 //
 // Header keys are canonicalized using MIME header casing, and malformed lines
-// without a separating colon are ignored.
+// without a separating colon are rejected.
 func parseHeaders(reader *bufio.Reader) (map[string]string, *errors.OpError) {
 	const maxHeaders = 100
 	const initialHeadersMapSize = 16
@@ -112,7 +112,7 @@ func parseHeaders(reader *bufio.Reader) (map[string]string, *errors.OpError) {
 		}
 
 		colonIndex := strings.IndexByte(line, ':')
-		if colonIndex <= 0 { // TODO: do not skip, reject with 400
+		if colonIndex <= 0 {
 			return nil, errors.New(errors.MalformedHeaderKind, "parse headers", "missing header key-value pair colon")
 		}
 

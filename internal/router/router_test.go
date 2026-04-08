@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/harshithl1777/flock/internal/config"
+	"github.com/harshithl1777/flock/internal/errors"
 	"github.com/harshithl1777/flock/internal/protocol"
 )
 
@@ -27,81 +28,97 @@ func newTestRouter() *Router {
 }
 
 func TestResolve_Dispatch(t *testing.T) {
-	routeHandler, errResponse := newTestRouter().Resolve(protocol.Get, "/")
+	match := newTestRouter().Resolve(protocol.Get, "/")
 
-	if errResponse != nil {
-		t.Fatalf("got errResponse %v, want nil", errResponse)
+	if match.Err != nil {
+		t.Fatalf("got err %v, want nil", match.Err)
 	}
 
-	if routeHandler == nil {
+	if match.Decision != Forward {
+		t.Fatalf("got decision %v, want %v", match.Decision, Forward)
+	}
+
+	if match.Route == nil {
 		t.Fatal("expected matched handler")
 	}
 }
 
 func TestResolve_HeadAllowedByGet(t *testing.T) {
-	routeHandler, errResponse := newTestRouter().Resolve(protocol.Head, "/")
+	match := newTestRouter().Resolve(protocol.Head, "/")
 
-	if errResponse != nil {
-		t.Fatalf("got errResponse %v, want nil", errResponse)
+	if match.Err != nil {
+		t.Fatalf("got err %v, want nil", match.Err)
 	}
 
-	if routeHandler == nil {
+	if match.Decision != Forward {
+		t.Fatalf("got decision %v, want %v", match.Decision, Forward)
+	}
+
+	if match.Route == nil {
 		t.Fatal("expected matched handler")
 	}
 }
 
 func TestResolve_MethodNotAllowed(t *testing.T) {
-	routeHandler, errResponse := newTestRouter().Resolve(protocol.Post, "/")
+	match := newTestRouter().Resolve(protocol.Post, "/")
 
-	if routeHandler != nil {
-		t.Fatalf("got handler %v, want nil", routeHandler)
+	if match.Route == nil {
+		t.Fatal("expected matched route for allow header")
 	}
 
-	if errResponse == nil {
-		t.Fatal("expected method not allowed errResponse")
+	if match.Err == nil {
+		t.Fatal("expected method not allowed err")
 	}
 
-	if errResponse.StatusCode != int(protocol.StatusMethodNotAllowed) {
-		t.Fatalf("got status %d, want %d", errResponse.StatusCode, protocol.StatusMethodNotAllowed)
+	if match.Decision != MethodNotAllowed {
+		t.Fatalf("got decision %v, want %v", match.Decision, MethodNotAllowed)
 	}
 
-	if got := errResponse.Headers[protocol.HeaderAllow]; got != "GET, HEAD" {
-		t.Fatalf("got allow header %q, want %q", got, "GET, HEAD")
+	if match.Err.Kind != errors.MethodNotAllowedKind {
+		t.Fatalf("got error kind %v, want %v", match.Err.Kind, errors.MethodNotAllowedKind)
+	}
+
+	if match.Route.AllowHeader != "GET, HEAD" {
+		t.Fatalf("got allow header %q, want %q", match.Route.AllowHeader, "GET, HEAD")
 	}
 }
 
-func TestResolve_OptionsReturnsOptionsDecision(t *testing.T) {
-	routeHandler, errResponse := newTestRouter().Resolve(protocol.Options, "/")
+func TestResolve_OptionsUsesPathMatch(t *testing.T) {
+	match := newTestRouter().Resolve(protocol.Options, "/")
 
-	if routeHandler != nil {
-		t.Fatalf("got handler %v, want nil", routeHandler)
+	if match.Route == nil {
+		t.Fatal("expected options route match")
 	}
 
-	if errResponse == nil {
-		t.Fatal("expected options errResponse")
+	if match.Err != nil {
+		t.Fatalf("got err %v, want nil", match.Err)
 	}
 
-	if errResponse.StatusCode != int(protocol.StatusNoContent) {
-		t.Fatalf("got status %d, want %d", errResponse.StatusCode, protocol.StatusNoContent)
+	if match.Decision != Options {
+		t.Fatalf("got decision %v, want %v", match.Decision, Options)
 	}
 
-	if got := errResponse.Headers[protocol.HeaderAllow]; got != "GET, HEAD" {
-		t.Fatalf("got allow header %q, want %q", got, "GET, HEAD")
+	if match.Route.AllowHeader != "GET, HEAD" {
+		t.Fatalf("got allow header %q, want %q", match.Route.AllowHeader, "GET, HEAD")
 	}
 }
 
 func TestResolve_NotFound(t *testing.T) {
-	routeHandler, errResponse := newTestRouter().Resolve(protocol.Get, "/missing")
+	match := newTestRouter().Resolve(protocol.Get, "/missing")
 
-	if routeHandler != nil {
-		t.Fatalf("got handler %v, want nil", routeHandler)
+	if match.Route != nil {
+		t.Fatalf("got route %v, want nil", match.Route)
 	}
 
-	if errResponse == nil {
-		t.Fatal("expected not found errResponse")
+	if match.Err == nil {
+		t.Fatal("expected not found err")
 	}
 
-	if errResponse.StatusCode != int(protocol.StatusNotFound) {
-		t.Fatalf("got status %d, want %d", errResponse.StatusCode, protocol.StatusNotFound)
+	if match.Decision != NotFound {
+		t.Fatalf("got decision %v, want %v", match.Decision, NotFound)
+	}
+
+	if match.Err.Kind != errors.NotFoundKind {
+		t.Fatalf("got error kind %v, want %v", match.Err.Kind, errors.NotFoundKind)
 	}
 }

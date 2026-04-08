@@ -71,6 +71,11 @@ func String(key, value string) zap.Field {
 	return zap.String(key, value)
 }
 
+// ByteString constructs a string field from bytes for structured logs.
+func ByteString(key string, value []byte) zap.Field {
+	return zap.ByteString(key, value)
+}
+
 // Int constructs an integer field for structured logs.
 func Int(key string, value int) zap.Field {
 	return zap.Int(key, value)

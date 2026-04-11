@@ -31,9 +31,16 @@ type RequestContext struct {
 	startTs time.Time
 }
 
+func (c *Connection) init() {
+	if c.reader == nil {
+		c.reader = bufio.NewReader(c.Conn)
+	}
+}
+
 // serve reads one request, resolves it through the router, writes the response,
 // and closes the connection.
 func (c *Connection) serve() {
+	c.init()
 	ctx := newRequestContext()
 	c.log.Info("accept connection")
 

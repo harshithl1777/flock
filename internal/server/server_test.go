@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -21,7 +22,9 @@ type acceptResult struct {
 type stubListener struct {
 	acceptErr error
 	accepts   chan acceptResult
+	closeCh   chan struct{}
 	closed    bool
+	closeOnce sync.Once
 }
 
 func (l *stubListener) Accept() (net.Conn, error) {
@@ -29,19 +32,24 @@ func (l *stubListener) Accept() (net.Conn, error) {
 		return nil, l.acceptErr
 	}
 
-	result, ok := <-l.accepts
-	if !ok {
+	select {
+	case <-l.closeCh:
 		return nil, net.ErrClosed
-	}
+	case result, ok := <-l.accepts:
+		if !ok {
+			return nil, net.ErrClosed
+		}
 
-	return result.conn, result.err
+		return result.conn, result.err
+	}
 }
 
 func (l *stubListener) Close() error {
-	if l.accepts != nil {
-		close(l.accepts)
-		l.accepts = nil
-	}
+	l.closeOnce.Do(func() {
+		if l.closeCh != nil {
+			close(l.closeCh)
+		}
+	})
 
 	l.closed = true
 	return nil
@@ -116,7 +124,10 @@ func TestServerStart_ReturnsNilWhenListenerCloses(t *testing.T) {
 }
 
 func TestServerStart_ConcurrentAccepts(t *testing.T) {
-	ln := &stubListener{accepts: make(chan acceptResult, 2)}
+	ln := &stubListener{
+		accepts: make(chan acceptResult, 2),
+		closeCh: make(chan struct{}),
+	}
 	srv := New(newTestServerConfig())
 	srv.listen = func(network, address string) (net.Listener, error) {
 		return ln, nil

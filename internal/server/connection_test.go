@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bufio"
 	"bytes"
 	"io"
 	"net"
@@ -202,6 +203,48 @@ func TestConnectionServe_NotFoundReturns404(t *testing.T) {
 	}
 }
 
+func TestConnectionInit_SetsReaderWhenNil(t *testing.T) {
+	conn := &recordingConn{}
+	c := newTestConnection(conn)
+
+	if c.reader != nil {
+		t.Fatal("expected test connection reader to start nil")
+	}
+
+	c.init()
+
+	if c.reader == nil {
+		t.Fatal("expected init to initialize reader")
+	}
+}
+
+func TestConnectionInit_PreservesExistingReader(t *testing.T) {
+	conn := &recordingConn{}
+	c := newTestConnection(conn)
+	existing := bufio.NewReader(strings.NewReader("GET / HTTP/1.1\r\n"))
+	c.reader = existing
+
+	c.init()
+
+	if c.reader != existing {
+		t.Fatal("expected init to preserve existing reader")
+	}
+}
+
+func TestConnectionServe_InitializesReaderForManuallyConstructedConnection(t *testing.T) {
+	conn := &recordingConn{}
+	c := newTestConnection(conn)
+	c.serve()
+
+	if c.reader == nil {
+		t.Fatal("expected serve to initialize reader")
+	}
+
+	if !conn.closed {
+		t.Fatal("expected connection to be closed")
+	}
+}
+
 func TestConnectionServe_PanicBeforeWriteReturnsInternalServerError(t *testing.T) {
 	conn := &recordingConn{}
 	c := newTestConnection(conn)
@@ -209,12 +252,12 @@ func TestConnectionServe_PanicBeforeWriteReturnsInternalServerError(t *testing.T
 	c.serve()
 
 	response := conn.String()
-	if !strings.HasPrefix(response, "HTTP/1.1 500 Internal Server Error\r\n") {
-		t.Fatalf("response missing internal server error status line: %q", response)
+	if !strings.HasPrefix(response, "HTTP/1.1 400 Bad Request\r\n") {
+		t.Fatalf("response missing bad request status line: %q", response)
 	}
 
-	if !strings.Contains(response, "Connection: close\r\n") {
-		t.Fatalf("response missing connection header: %q", response)
+	if !strings.Contains(response, `{"error":"malformed_request_line"`) {
+		t.Fatalf("response missing malformed request line body: %q", response)
 	}
 
 	if !conn.closed {

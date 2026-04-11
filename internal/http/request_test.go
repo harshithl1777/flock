@@ -105,6 +105,16 @@ func TestReadRequest_RejectsMalformedHeader(t *testing.T) {
 	assertRequestErrorKind(t, err, errors.MalformedHeaderKind)
 }
 
+func TestReadRequest_RejectsEmptyHeaderKey(t *testing.T) {
+	raw := "" +
+		"GET / HTTP/1.1\r\n" +
+		": localhost\r\n" +
+		"\r\n"
+
+	_, err := ReadRequest(bufio.NewReader(strings.NewReader(raw)))
+	assertRequestErrorKind(t, err, errors.MalformedHeaderKind)
+}
+
 func TestReadRequest_RequiresHostHeader(t *testing.T) {
 	raw := "" +
 		"GET / HTTP/1.1\r\n" +
@@ -112,4 +122,27 @@ func TestReadRequest_RequiresHostHeader(t *testing.T) {
 
 	_, err := ReadRequest(bufio.NewReader(strings.NewReader(raw)))
 	assertRequestErrorKind(t, err, errors.MissingHostKind)
+}
+
+func TestReadRequest_RejectsInvalidContentLength(t *testing.T) {
+	raw := "" +
+		"POST /submit HTTP/1.1\r\n" +
+		"Host: localhost\r\n" +
+		"Content-Length: nope\r\n" +
+		"\r\n"
+
+	_, err := ReadRequest(bufio.NewReader(strings.NewReader(raw)))
+	assertRequestErrorKind(t, err, errors.InvalidContentLengthKind)
+}
+
+func TestReadRequest_RejectsIncompleteBody(t *testing.T) {
+	raw := "" +
+		"POST /submit HTTP/1.1\r\n" +
+		"Host: localhost\r\n" +
+		"Content-Length: 5\r\n" +
+		"\r\n" +
+		"hey"
+
+	_, err := ReadRequest(bufio.NewReader(strings.NewReader(raw)))
+	assertRequestErrorKind(t, err, errors.IncompleteBodyKind)
 }

@@ -119,6 +119,10 @@ func parseHeaders(reader *bufio.Reader) (map[string]string, *errors.OpError) {
 		key := strings.TrimSpace(line[:colonIndex])
 		value := strings.TrimSpace(line[colonIndex+1:])
 
+		if key == "" {
+			return nil, errors.New(errors.MalformedHeaderKind, "parse headers", "header key is empty")
+		}
+
 		headers[textproto.CanonicalMIMEHeaderKey(key)] = value
 	}
 

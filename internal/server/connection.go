@@ -93,6 +93,7 @@ func (c *Connection) successWrite(ctx *RequestContext, r *http.Response) {
 func (c *Connection) routerWrite(ctx *RequestContext, match router.Match) {
 	var r *http.Response
 	var allow string
+	err := match.Err
 
 	if match.Route != nil {
 		allow = match.Route.AllowHeader
@@ -103,13 +104,24 @@ func (c *Connection) routerWrite(ctx *RequestContext, match router.Match) {
 		r = http.NewStatusResponse(protocol.StatusNoContent).
 			WithHeader(protocol.HeaderAllow, allow)
 	case router.MethodNotAllowed:
-		r = http.NewStatusResponse(protocol.StatusMethodNotAllowed).
-			WithHeader(protocol.HeaderAllow, allow)
+		errResp, marshalErr := http.NewErrorResponse(err)
+		if marshalErr != nil {
+			r = http.NewStatusResponse(protocol.StatusInternalServerError)
+			err = marshalErr
+		} else {
+			r = errResp.WithHeader(protocol.HeaderAllow, allow)
+		}
 	default:
-		r = http.NewStatusResponse(protocol.StatusNotFound)
+		errResp, marshalErr := http.NewErrorResponse(match.Err)
+		if marshalErr != nil {
+			r = http.NewStatusResponse(protocol.StatusInternalServerError)
+			err = marshalErr
+		} else {
+			r = errResp
+		}
 	}
 
-	c.write(ctx, r, match.Err)
+	c.write(ctx, r, err)
 }
 
 // failWrite converts an operational error into an HTTP error response and writes it.

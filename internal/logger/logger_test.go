@@ -120,6 +120,7 @@ func TestErr_OpErrorUsesStructuredObject(t *testing.T) {
 }
 
 func TestByteString_LogsBytesAsString(t *testing.T) {
+	t.Setenv("FLOCK_DISABLE_LOGGING", "false")
 	var buf bytes.Buffer
 
 	log := newLogger("production", zapcore.AddSync(&buf), false)

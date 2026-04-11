@@ -2,7 +2,9 @@ package server
 
 import (
 	stderrors "errors"
+	"io"
 	"net"
+	"strings"
 	"testing"
 	"time"
 
@@ -11,16 +13,40 @@ import (
 	"github.com/harshithl1777/flock/internal/protocol"
 )
 
+type acceptResult struct {
+	conn net.Conn
+	err  error
+}
+
 type stubListener struct {
 	acceptErr error
+	accepts   chan acceptResult
 	closed    bool
 }
 
-func (l *stubListener) Accept() (net.Conn, error) { return nil, l.acceptErr }
+func (l *stubListener) Accept() (net.Conn, error) {
+	if l.accepts == nil {
+		return nil, l.acceptErr
+	}
+
+	result, ok := <-l.accepts
+	if !ok {
+		return nil, net.ErrClosed
+	}
+
+	return result.conn, result.err
+}
+
 func (l *stubListener) Close() error {
+	if l.accepts != nil {
+		close(l.accepts)
+		l.accepts = nil
+	}
+
 	l.closed = true
 	return nil
 }
+
 func (l *stubListener) Addr() net.Addr { return stubAddr("listener") }
 
 func newTestServerConfig() *config.Config {
@@ -82,6 +108,74 @@ func TestServerStart_ReturnsNilWhenListenerCloses(t *testing.T) {
 	err := srv.Start()
 	if err != nil {
 		t.Fatalf("got err %v, want nil", err)
+	}
+
+	if srv.ln != ln {
+		t.Fatal("expected server to retain opened listener")
+	}
+}
+
+func TestServerStart_ConcurrentAccepts(t *testing.T) {
+	ln := &stubListener{accepts: make(chan acceptResult, 2)}
+	srv := New(newTestServerConfig())
+	srv.listen = func(network, address string) (net.Listener, error) {
+		return ln, nil
+	}
+
+	startErrCh := make(chan *errors.OpError, 1)
+	go func() {
+		startErrCh <- srv.Start()
+	}()
+
+	serverConn1, clientConn1 := net.Pipe()
+	defer serverConn1.Close()
+	defer clientConn1.Close()
+
+	ln.accepts <- acceptResult{conn: serverConn1}
+
+	serverConn2, clientConn2 := net.Pipe()
+	defer serverConn2.Close()
+	defer clientConn2.Close()
+
+	ln.accepts <- acceptResult{conn: serverConn2}
+
+	if err := clientConn2.SetDeadline(time.Now().Add(2 * time.Second)); err != nil {
+		t.Fatalf("set second connection deadline: %v", err)
+	}
+
+	request := "" +
+		"GET / HTTP/1.1\r\n" +
+		"Host: localhost\r\n" +
+		"\r\n"
+	if _, err := clientConn2.Write([]byte(request)); err != nil {
+		t.Fatalf("write second request: %v", err)
+	}
+
+	responseBytes, err := io.ReadAll(clientConn2)
+	if err != nil {
+		t.Fatalf("read second response: %v", err)
+	}
+
+	response := string(responseBytes)
+	if !strings.HasPrefix(response, "HTTP/1.1 200 OK\r\n") {
+		t.Fatalf("second response missing status line: %q", response)
+	}
+
+	if !strings.Contains(response, `"status":"pass"`) {
+		t.Fatalf("second response missing health payload: %q", response)
+	}
+
+	if err := ln.Close(); err != nil {
+		t.Fatalf("close listener: %v", err)
+	}
+
+	select {
+	case err := <-startErrCh:
+		if err != nil {
+			t.Fatalf("got err %v, want nil", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for Start to return")
 	}
 
 	if srv.ln != ln {

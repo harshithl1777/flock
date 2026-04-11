@@ -29,7 +29,12 @@ func mustNewLogger(env string, sink zapcore.WriteSyncer, colorize bool) *zap.Log
 // newLogger builds a zap logger for the configured environment.
 func newLogger(env string, sink zapcore.WriteSyncer, colorize bool) *zap.Logger {
 	encoder := newEncoder(env, colorize)
-	core := zapcore.NewCore(encoder, sink, zap.InfoLevel)
+	level := zap.InfoLevel
+	if os.Getenv("FLOCK_DISABLE_LOGGING") == "true" {
+		level = zap.FatalLevel
+	}
+
+	core := zapcore.NewCore(encoder, sink, level)
 	if env == "development" {
 		core = &messagePaddingCore{Core: core, width: messageWidth}
 	}
@@ -69,6 +74,11 @@ func With(fields ...zap.Field) *zap.Logger {
 // String constructs a string field for structured logs.
 func String(key, value string) zap.Field {
 	return zap.String(key, value)
+}
+
+// ByteString constructs a string field from bytes for structured logs.
+func ByteString(key string, value []byte) zap.Field {
+	return zap.ByteString(key, value)
 }
 
 // Int constructs an integer field for structured logs.

@@ -2,7 +2,7 @@ network:
     port: 8080
 
 routes:
-    - path: /
+    - path: /health
       methods: [GET]
       health:
           code: 200

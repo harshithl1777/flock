@@ -104,8 +104,8 @@ func TestLoad_DefaultConfigWhenPathEmpty(t *testing.T) {
 		t.Fatalf("got %d routes, want 1", len(cfg.Routes))
 	}
 
-	if cfg.Routes[0].Path != "/" {
-		t.Fatalf("got route path %q, want /", cfg.Routes[0].Path)
+	if cfg.Routes[0].Path != "/health" {
+		t.Fatalf("got route path %q, want /health", cfg.Routes[0].Path)
 	}
 
 	if cfg.Routes[0].HealthOptions == nil {

@@ -2,12 +2,12 @@ package http
 
 import (
 	"bytes"
-	errors "errors"
+	stderrors "errors"
 	"io"
 	"strings"
 	"testing"
 
-	stderrors "github.com/harshithl1777/flock/internal/errors"
+	"github.com/harshithl1777/flock/internal/errors"
 	"github.com/harshithl1777/flock/internal/protocol"
 )
 
@@ -115,7 +115,7 @@ func TestNewJSONResponse_SerializesBody(t *testing.T) {
 }
 
 func TestNewErrorResponse_MapsBodyTooLargeToBadRequest(t *testing.T) {
-	response, err := NewErrorResponse(stderrors.New(stderrors.BodyTooLargeKind, "parse body", "too large"))
+	response, err := NewErrorResponse(errors.New(errors.BodyTooLargeKind, "parse body", "too large"))
 	if err != nil {
 		t.Fatalf("NewErrorResponse returned error: %v", err)
 	}
@@ -155,7 +155,7 @@ func TestWriteTo_PropagatesWriterErrorAndPartialCount(t *testing.T) {
 	response := NewTextResponse(protocol.StatusOK, "Hello World!")
 	response.Headers[protocol.HeaderContentLength] = "999"
 
-	expected := errors.New("write failed")
+	expected := stderrors.New("write failed")
 	writer := &failAfterNWriter{
 		remaining: 16,
 		err:       expected,
@@ -163,7 +163,7 @@ func TestWriteTo_PropagatesWriterErrorAndPartialCount(t *testing.T) {
 
 	n, err := response.WriteTo(writer)
 
-	if !errors.Is(err, expected) {
+	if !stderrors.Is(err, expected) {
 		t.Fatalf("expected WriteTo to return the original writer error, got %v", err)
 	}
 

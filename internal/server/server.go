@@ -13,8 +13,9 @@ import (
 
 type Server struct {
 	cfg    *config.Config
-	ln     net.Listener
 	router *router.Router
+	ln     net.Listener
+	listen func(network string, address string) (net.Listener, error)
 }
 
 // New constructs a Server from the provided configuration.
@@ -22,6 +23,7 @@ func New(cfg *config.Config) *Server {
 	return &Server{
 		cfg:    cfg,
 		router: router.New(cfg.Routes),
+		listen: net.Listen,
 	}
 }
 
@@ -31,7 +33,7 @@ func New(cfg *config.Config) *Server {
 func (srv *Server) Start() *errors.OpError {
 	addr := ":" + strconv.Itoa(srv.cfg.Network.Port)
 
-	ln, err := net.Listen("tcp", addr)
+	ln, err := srv.listen("tcp", addr)
 	if err != nil {
 		return errors.Wrap(errors.ServerStartupKind, "open tcp listener", err)
 	}
@@ -51,6 +53,6 @@ func (srv *Server) Start() *errors.OpError {
 		}
 
 		conn := NewConnection(netConn, srv.router)
-		conn.serve()
+		go conn.serve()
 	}
 }

@@ -22,13 +22,67 @@ type Router struct {
 	routes []Route
 }
 
-// Resolve returns either a ready-to-write response for router-owned outcomes
-// or the matched handler for normal request dispatch.
-func (r *Router) Resolve(method protocol.Method, path string) (handler.Handler, *http.Response) {
+// RoutingDecision classifies how the caller should handle a matched request.
+type RoutingDecision uint16
+
+const (
+	Forward RoutingDecision = iota
+	Options
+	NotFound
+	MethodNotAllowed
+)
+
+// Match captures the best route lookup result along with any routing error.
+type Match struct {
+	Route    *Route
+	Err      *errors.OpError
+	Decision RoutingDecision
+}
+
+// Resolve returns the best route match together with the caller action needed
+// to complete request handling.
+func (r *Router) Resolve(method protocol.Method, path string) Match {
+	pathMatch, methodMatch := r.match(method, path)
+
+	var decision RoutingDecision
+	var route *Route
+	var err *errors.OpError
+
+	if method == protocol.Options && pathMatch != nil {
+		route = pathMatch
+		decision = Options
+	} else if methodMatch != nil {
+		route = methodMatch
+		decision = Forward
+	} else if pathMatch != nil {
+		route = pathMatch
+		decision = MethodNotAllowed
+		err = errors.Newf(
+			errors.MethodNotAllowedKind,
+			"match request route",
+			"requested method %s not allowed",
+			method,
+		)
+	} else {
+		decision = NotFound
+		err = errors.Newf(
+			errors.NotFoundKind,
+			"match request route",
+			"no matching route found for %s %s",
+			method,
+			path,
+		)
+	}
+
+	return Match{Route: route, Decision: decision, Err: err}
+}
+
+// match returns the longest path match and the longest method-allowed match.
+func (r *Router) match(method protocol.Method, path string) (*Route, *Route) {
 	path = normalizePath(path)
 
-	var bestPathMatch *Route
-	var bestAllowedMatch *Route
+	var pathMatch *Route
+	var methodMatch *Route
 
 	for i := range r.routes {
 		route := &r.routes[i]
@@ -44,35 +98,20 @@ func (r *Router) Resolve(method protocol.Method, path string) (handler.Handler, 
 			}
 		}
 
-		if bestPathMatch == nil || len(route.Path) > len(bestPathMatch.Path) {
-			bestPathMatch = route
+		if pathMatch == nil || len(route.Path) > len(pathMatch.Path) {
+			pathMatch = route
 		}
 
 		if !route.Methods.Allows(method) {
 			continue
 		}
 
-		if bestAllowedMatch == nil || len(route.Path) > len(bestAllowedMatch.Path) {
-			bestAllowedMatch = route
+		if methodMatch == nil || len(route.Path) > len(methodMatch.Path) {
+			methodMatch = route
 		}
 	}
 
-	if method == protocol.Options && bestPathMatch != nil {
-		return nil, http.NewStatusResponse(protocol.StatusNoContent).
-			WithHeader(protocol.HeaderAllow, bestPathMatch.AllowHeader)
-	}
-
-	if bestAllowedMatch != nil {
-		return bestAllowedMatch.Handler, nil
-	}
-
-	if bestPathMatch == nil {
-		return nil, newErrorResponse(errors.Newf(errors.NotFoundKind, "match request route", "no matching route found for %s %s", method, path))
-	}
-
-	return nil, newErrorResponse(
-		errors.Newf(errors.MethodNotAllowedKind, "match request route", "requested method %s not allowed", method),
-	).WithHeader(protocol.HeaderAllow, bestPathMatch.AllowHeader)
+	return pathMatch, methodMatch
 }
 
 // New builds the runtime router from the validated configuration routes.

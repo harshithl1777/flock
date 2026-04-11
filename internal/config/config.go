@@ -34,11 +34,11 @@ type HandlerHealthOptions struct {
 }
 
 type RouteConfig struct {
-	Path            string                  `yaml:"path"`
-	Methods         []protocol.Method       `yaml:"methods"`
 	StatusOptions   *HandlerStatusOptions   `yaml:"status,omitempty"`
 	RedirectOptions *HandlerRedirectOptions `yaml:"redirect,omitempty"`
 	HealthOptions   *HandlerHealthOptions   `yaml:"health,omitempty"`
+	Path            string                  `yaml:"path"`
+	Methods         []protocol.Method       `yaml:"methods"`
 }
 
 type RoutesConfig []RouteConfig

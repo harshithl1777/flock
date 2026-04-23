@@ -86,6 +86,16 @@ func Int(key string, value int) zap.Field {
 	return zap.Int(key, value)
 }
 
+// Uint64 constructs an integer field for structured logs.
+func Uint64(key string, value uint64) zap.Field {
+	return zap.Uint64(key, value)
+}
+
+// Bool constructs an integer field for structured logs.
+func Bool(key string, value bool) zap.Field {
+	return zap.Bool(key, value)
+}
+
 // Duration constructs a duration field for structured logs.
 func Duration(key string, value time.Duration) zap.Field {
 	return zap.Duration(key, value)

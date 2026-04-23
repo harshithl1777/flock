@@ -2,8 +2,11 @@ package http
 
 import (
 	"bufio"
+	stderrors "errors"
 	"io"
+	"net"
 	"net/textproto"
+	"os"
 	"strconv"
 	"strings"
 
@@ -26,6 +29,12 @@ type Request struct {
 func ReadRequest(reader *bufio.Reader) (*Request, *errors.OpError) {
 	line, err := reader.ReadString('\n')
 	if err != nil {
+		if err == io.EOF && line == "" {
+			return nil, errors.Wrap(errors.ClientClosedConnectionKind, "read request", err)
+		}
+		if isRequestTimeout(err) {
+			return nil, errors.Wrap(errors.RequestTimeoutKind, "read request", err)
+		}
 		return nil, errors.Wrap(errors.MalformedRequestLineKind, "read request", err)
 	}
 
@@ -34,7 +43,7 @@ func ReadRequest(reader *bufio.Reader) (*Request, *errors.OpError) {
 		return nil, errors.Chain("read request", opErr)
 	}
 
-	headers, opErr := parseHeaders(reader)
+	headers, opErr := parseHeaders(reader, version)
 	if opErr != nil {
 		return nil, errors.Chain("read request", opErr)
 	}
@@ -87,7 +96,7 @@ func parseRequestLine(line string) (protocol.Method, string, protocol.Version, *
 //
 // Header keys are canonicalized using MIME header casing, and malformed lines
 // without a separating colon are rejected.
-func parseHeaders(reader *bufio.Reader) (map[string]string, *errors.OpError) {
+func parseHeaders(reader *bufio.Reader, version protocol.Version) (map[string]string, *errors.OpError) {
 	const maxHeaders = 100
 	const initialHeadersMapSize = 16
 
@@ -97,6 +106,9 @@ func parseHeaders(reader *bufio.Reader) (map[string]string, *errors.OpError) {
 	for {
 		line, err := reader.ReadString('\n')
 		if err != nil {
+			if isRequestTimeout(err) {
+				return nil, errors.Wrap(errors.RequestTimeoutKind, "parse headers", err)
+			}
 			return nil, errors.Wrap(errors.MalformedHeaderKind, "parse headers", err)
 		}
 
@@ -126,7 +138,7 @@ func parseHeaders(reader *bufio.Reader) (map[string]string, *errors.OpError) {
 		headers[textproto.CanonicalMIMEHeaderKey(key)] = value
 	}
 
-	if _, ok := headers[string(protocol.HeaderHost)]; !ok {
+	if _, ok := headers[string(protocol.HeaderHost)]; version == protocol.HTTP11 && !ok {
 		return nil, errors.New(errors.MissingHostKind, "parse headers", "missing host header")
 	}
 
@@ -138,7 +150,7 @@ func parseHeaders(reader *bufio.Reader) (map[string]string, *errors.OpError) {
 // It currently supports only fixed-length bodies and rejects chunked transfer
 // encoding and bodies larger than the in-memory safety limit.
 func readBody(reader *bufio.Reader, headers map[string]string) ([]byte, *errors.OpError) {
-	if headers[string(protocol.HeaderTransferEncoding)] == "chunked" {
+	if strings.EqualFold(headers[string(protocol.HeaderTransferEncoding)], "chunked") {
 		return nil, errors.New(errors.UnsupportedTransferEncodingKind, "parse body", "chunked encoding not supported")
 	}
 
@@ -160,8 +172,24 @@ func readBody(reader *bufio.Reader, headers map[string]string) ([]byte, *errors.
 	body := make([]byte, contentLength)
 	_, err = io.ReadFull(reader, body)
 	if err != nil {
+		if isRequestTimeout(err) {
+			return nil, errors.Wrap(errors.RequestTimeoutKind, "parse body", err)
+		}
 		return nil, errors.Wrap(errors.IncompleteBodyKind, "parse body", err)
 	}
 
 	return body, nil
+}
+
+func isRequestTimeout(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	if os.IsTimeout(err) || stderrors.Is(err, os.ErrDeadlineExceeded) {
+		return true
+	}
+
+	var netErr net.Error
+	return stderrors.As(err, &netErr) && netErr.Timeout()
 }

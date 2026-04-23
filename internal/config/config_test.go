@@ -18,6 +18,7 @@ func TestLoad_ValidConfig(t *testing.T) {
 	content := `
 network:
   port: 8080
+  maxRequestsPerConnection: 100
 routes:
   - path: /
     methods: [GET]
@@ -30,6 +31,7 @@ routes:
 timeouts:
   read: 5s
   write: 10s
+  idle: 10s
 `
 
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
@@ -88,6 +90,14 @@ timeouts:
 	if cfg.Timeouts.Write != 10*time.Second {
 		t.Fatalf("got write timeout %v, want 10s", cfg.Timeouts.Write)
 	}
+
+	if cfg.Timeouts.Idle != 10*time.Second {
+		t.Fatalf("got idle timeout %v, want 10s", cfg.Timeouts.Idle)
+	}
+
+	if cfg.Network.MaxRequestsPerConnection != 100 {
+		t.Fatalf("got max requests per connection %d, want 100", cfg.Network.MaxRequestsPerConnection)
+	}
 }
 
 func TestLoad_DefaultConfigWhenPathEmpty(t *testing.T) {
@@ -98,6 +108,10 @@ func TestLoad_DefaultConfigWhenPathEmpty(t *testing.T) {
 
 	if cfg.Network.Port != 8080 {
 		t.Fatalf("got port %d, want 8080", cfg.Network.Port)
+	}
+
+	if cfg.Network.MaxRequestsPerConnection != 100 {
+		t.Fatalf("got max requests per connection %d, want 100", cfg.Network.MaxRequestsPerConnection)
 	}
 
 	if len(cfg.Routes) != 1 {
@@ -127,6 +141,10 @@ func TestLoad_DefaultConfigWhenPathEmpty(t *testing.T) {
 	if cfg.Timeouts.Write != 10*time.Second {
 		t.Fatalf("got write timeout %v, want 10s", cfg.Timeouts.Write)
 	}
+
+	if cfg.Timeouts.Idle != 10*time.Second {
+		t.Fatalf("got idle timeout %v, want 10s", cfg.Timeouts.Idle)
+	}
 }
 
 func TestLoad_MissingFile(t *testing.T) {
@@ -146,9 +164,12 @@ func TestLoad_MissingPort(t *testing.T) {
 	path := filepath.Join(dir, "config.yaml")
 
 	content := `
+network:
+  maxRequestsPerConnection: 100
 timeouts:
   read: 5s
   write: 10s
+  idle: 10s
 `
 
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {

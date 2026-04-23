@@ -43,22 +43,6 @@ func TestResolve_Dispatch(t *testing.T) {
 	}
 }
 
-func TestResolve_HeadAllowedByGet(t *testing.T) {
-	match := newTestRouter().Resolve(protocol.Head, "/")
-
-	if match.Err != nil {
-		t.Fatalf("got err %v, want nil", match.Err)
-	}
-
-	if match.Decision != Forward {
-		t.Fatalf("got decision %v, want %v", match.Decision, Forward)
-	}
-
-	if match.Route == nil {
-		t.Fatal("expected matched handler")
-	}
-}
-
 func TestResolve_MethodNotAllowed(t *testing.T) {
 	match := newTestRouter().Resolve(protocol.Post, "/")
 

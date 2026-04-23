@@ -5,6 +5,8 @@ type ErrorKind int
 const (
 	ConfigLoadKind ErrorKind = iota
 	ServerStartupKind
+	ClientClosedConnectionKind
+	RequestTimeoutKind
 	MalformedRequestLineKind
 	MalformedHeaderKind
 	MissingHostKind
@@ -30,6 +32,10 @@ func (k ErrorKind) String() string {
 		return "server_startup"
 	case ConfigLoadKind:
 		return "config_load"
+	case ClientClosedConnectionKind:
+		return "client_closed_connection"
+	case RequestTimeoutKind:
+		return "request_timeout"
 	case MalformedRequestLineKind:
 		return "malformed_request_line"
 	case MalformedHeaderKind:
@@ -74,6 +80,10 @@ func (k ErrorKind) Description() string {
 		return "failed to load configuration"
 	case ServerStartupKind:
 		return "failed to start the server"
+	case ClientClosedConnectionKind:
+		return "the client closed the connection"
+	case RequestTimeoutKind:
+		return "the client took too long to send the request"
 	case MalformedRequestLineKind:
 		return "the request line is malformed"
 	case MalformedHeaderKind:
@@ -108,5 +118,37 @@ func (k ErrorKind) Description() string {
 		return "an internal server error occurred"
 	default:
 		return "an internal server error occurred"
+	}
+}
+
+// IsClientError reports whether the kind represents a client-caused request error.
+func (k ErrorKind) IsClientError() bool {
+	switch k {
+	case RequestTimeoutKind:
+		return true
+	case MalformedRequestLineKind:
+		return true
+	case MalformedHeaderKind:
+		return true
+	case MissingHostKind:
+		return true
+	case UnsupportedHTTPMethodKind:
+		return true
+	case UnsupportedHTTPVersionKind:
+		return true
+	case InvalidContentLengthKind:
+		return true
+	case UnsupportedTransferEncodingKind:
+		return true
+	case IncompleteBodyKind:
+		return true
+	case RequestLineTooLargeKind:
+		return true
+	case HeadersTooLargeKind:
+		return true
+	case BodyTooLargeKind:
+		return true
+	default:
+		return false
 	}
 }

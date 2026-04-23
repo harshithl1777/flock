@@ -12,12 +12,14 @@ import (
 )
 
 type NetworkConfig struct {
-	Port int `yaml:"port"`
+	Port                     int   `yaml:"port"`
+	MaxRequestsPerConnection int64 `yaml:"maxRequestsPerConnection"`
 }
 
 type TimeoutsConfig struct {
 	Read  time.Duration `yaml:"read"`
 	Write time.Duration `yaml:"write"`
+	Idle  time.Duration `yaml:"idle"`
 }
 
 type HandlerStatusOptions struct {
@@ -52,6 +54,8 @@ type Config struct {
 func (nc NetworkConfig) Validate() *errors.OpError {
 	if nc.Port < 1 || nc.Port > 65535 {
 		return errors.Newf(errors.ConfigLoadKind, "validate network config", "invalid server port: %d", nc.Port)
+	} else if nc.MaxRequestsPerConnection <= 0 {
+		return errors.Newf(errors.ConfigLoadKind, "validate network config", "invalid maxRequestsPerConnection value: %d", nc.MaxRequestsPerConnection)
 	}
 	return nil
 }
@@ -61,6 +65,8 @@ func (tc TimeoutsConfig) Validate() *errors.OpError {
 		return errors.Newf(errors.ConfigLoadKind, "validate timeouts config", "invalid read timeout: %s", tc.Read)
 	} else if tc.Write <= 0 {
 		return errors.Newf(errors.ConfigLoadKind, "validate timeouts config", "invalid write timeout: %s", tc.Write)
+	} else if tc.Idle <= 0 {
+		return errors.Newf(errors.ConfigLoadKind, "validate timeouts config", "invalid idle timeout: %s", tc.Write)
 	}
 
 	return nil

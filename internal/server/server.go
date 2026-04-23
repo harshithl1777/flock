@@ -52,7 +52,7 @@ func (srv *Server) Start() *errors.OpError {
 			continue
 		}
 
-		conn := NewConnection(netConn, srv.router)
+		conn := NewConnection(netConn, srv.cfg, srv.router)
 		go conn.serve()
 	}
 }

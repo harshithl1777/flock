@@ -127,6 +127,8 @@ func NewErrorResponse(err *errors.OpError) (*Response, *errors.OpError) {
 	var code protocol.StatusCode
 
 	switch err.Kind {
+	case errors.RequestTimeoutKind:
+		code = protocol.StatusRequestTimeout
 	case errors.MalformedRequestLineKind:
 		code = protocol.StatusBadRequest
 	case errors.MalformedHeaderKind:

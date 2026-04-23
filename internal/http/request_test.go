@@ -3,8 +3,10 @@ package http
 import (
 	"bufio"
 	stderrors "errors"
+	"net"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/harshithl1777/flock/internal/errors"
 	"github.com/harshithl1777/flock/internal/protocol"
@@ -145,4 +147,22 @@ func TestReadRequest_RejectsIncompleteBody(t *testing.T) {
 
 	_, err := ReadRequest(bufio.NewReader(strings.NewReader(raw)))
 	assertRequestErrorKind(t, err, errors.IncompleteBodyKind)
+}
+
+func TestReadRequest_ClientClosedBeforeRequestLine(t *testing.T) {
+	_, err := ReadRequest(bufio.NewReader(strings.NewReader("")))
+	assertRequestErrorKind(t, err, errors.ClientClosedConnectionKind)
+}
+
+func TestReadRequest_TimeoutBeforeRequestLine(t *testing.T) {
+	serverConn, clientConn := net.Pipe()
+	defer serverConn.Close()
+	defer clientConn.Close()
+
+	if err := serverConn.SetReadDeadline(time.Now().Add(20 * time.Millisecond)); err != nil {
+		t.Fatalf("set read deadline: %v", err)
+	}
+
+	_, err := ReadRequest(bufio.NewReader(serverConn))
+	assertRequestErrorKind(t, err, errors.RequestTimeoutKind)
 }

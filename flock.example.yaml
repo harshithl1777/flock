@@ -1,5 +1,6 @@
 network:
     port: 8080
+    maxRequestsPerConnection: 100
 
 routes:
     - path: /health
@@ -15,3 +16,4 @@ routes:
 timeouts:
     read: 5s
     write: 10s
+    idle: 10s

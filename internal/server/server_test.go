@@ -1,9 +1,11 @@
 package server
 
 import (
+	"bufio"
 	stderrors "errors"
 	"io"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -162,12 +164,7 @@ func TestServerStart_ConcurrentAccepts(t *testing.T) {
 		t.Fatalf("write second request: %v", err)
 	}
 
-	responseBytes, err := io.ReadAll(clientConn2)
-	if err != nil {
-		t.Fatalf("read second response: %v", err)
-	}
-
-	response := string(responseBytes)
+	response := readSingleResponse(t, clientConn2)
 	if !strings.HasPrefix(response, "HTTP/1.1 200 OK\r\n") {
 		t.Fatalf("second response missing status line: %q", response)
 	}
@@ -192,4 +189,54 @@ func TestServerStart_ConcurrentAccepts(t *testing.T) {
 	if srv.ln != ln {
 		t.Fatal("expected server to retain opened listener")
 	}
+}
+
+func readSingleResponse(t *testing.T, conn net.Conn) string {
+	t.Helper()
+
+	reader := bufio.NewReader(conn)
+	var response strings.Builder
+
+	statusLine, err := reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read status line: %v", err)
+	}
+	response.WriteString(statusLine)
+
+	contentLength := 0
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read header line: %v", err)
+		}
+
+		response.WriteString(line)
+		if line == "\r\n" {
+			break
+		}
+
+		name, value, found := strings.Cut(strings.TrimRight(line, "\r\n"), ":")
+		if !found {
+			continue
+		}
+
+		if strings.EqualFold(strings.TrimSpace(name), string(protocol.HeaderContentLength)) {
+			contentLength, err = strconv.Atoi(strings.TrimSpace(value))
+			if err != nil {
+				t.Fatalf("parse content length: %v", err)
+			}
+		}
+	}
+
+	if contentLength == 0 {
+		return response.String()
+	}
+
+	body := make([]byte, contentLength)
+	if _, err := io.ReadFull(reader, body); err != nil {
+		t.Fatalf("read response body: %v", err)
+	}
+
+	response.Write(body)
+	return response.String()
 }

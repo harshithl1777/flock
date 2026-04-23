@@ -181,6 +181,7 @@ func readBody(reader *bufio.Reader, headers map[string]string) ([]byte, *errors.
 	return body, nil
 }
 
+// isRequestTimeout reports whether err was caused by a read deadline expiring.
 func isRequestTimeout(err error) bool {
 	if err == nil {
 		return false

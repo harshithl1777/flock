@@ -126,6 +126,21 @@ func TestReadRequest_RequiresHostHeader(t *testing.T) {
 	assertRequestErrorKind(t, err, errors.MissingHostKind)
 }
 
+func TestReadRequest_HTTP10DoesNotRequireHostHeader(t *testing.T) {
+	raw := "" +
+		"GET / HTTP/1.0\r\n" +
+		"\r\n"
+
+	request, err := ReadRequest(bufio.NewReader(strings.NewReader(raw)))
+	if err != nil {
+		t.Fatalf("ReadRequest returned error: %v", err)
+	}
+
+	if request.Version != protocol.HTTP10 {
+		t.Fatalf("got version %q, want %q", request.Version, protocol.HTTP10)
+	}
+}
+
 func TestReadRequest_RejectsInvalidContentLength(t *testing.T) {
 	raw := "" +
 		"POST /submit HTTP/1.1\r\n" +
@@ -158,6 +173,46 @@ func TestReadRequest_TimeoutBeforeRequestLine(t *testing.T) {
 	serverConn, clientConn := net.Pipe()
 	defer serverConn.Close()
 	defer clientConn.Close()
+
+	if err := serverConn.SetReadDeadline(time.Now().Add(20 * time.Millisecond)); err != nil {
+		t.Fatalf("set read deadline: %v", err)
+	}
+
+	_, err := ReadRequest(bufio.NewReader(serverConn))
+	assertRequestErrorKind(t, err, errors.RequestTimeoutKind)
+}
+
+func TestReadRequest_TimeoutWhileReadingHeaders(t *testing.T) {
+	serverConn, clientConn := net.Pipe()
+	defer serverConn.Close()
+	defer clientConn.Close()
+
+	go func() {
+		_, _ = clientConn.Write([]byte("GET / HTTP/1.1\r\n"))
+	}()
+
+	if err := serverConn.SetReadDeadline(time.Now().Add(20 * time.Millisecond)); err != nil {
+		t.Fatalf("set read deadline: %v", err)
+	}
+
+	_, err := ReadRequest(bufio.NewReader(serverConn))
+	assertRequestErrorKind(t, err, errors.RequestTimeoutKind)
+}
+
+func TestReadRequest_TimeoutWhileReadingBody(t *testing.T) {
+	serverConn, clientConn := net.Pipe()
+	defer serverConn.Close()
+	defer clientConn.Close()
+
+	go func() {
+		raw := "" +
+			"POST /submit HTTP/1.1\r\n" +
+			"Host: localhost\r\n" +
+			"Content-Length: 5\r\n" +
+			"\r\n" +
+			"he"
+		_, _ = clientConn.Write([]byte(raw))
+	}()
 
 	if err := serverConn.SetReadDeadline(time.Now().Add(20 * time.Millisecond)); err != nil {
 		t.Fatalf("set read deadline: %v", err)

@@ -111,7 +111,12 @@ func serveRequest(t *testing.T, raw string) string {
 func readHTTPResponse(t *testing.T, conn net.Conn) string {
 	t.Helper()
 
-	reader := bufio.NewReader(conn)
+	return readHTTPResponseFromReader(t, bufio.NewReader(conn))
+}
+
+func readHTTPResponseFromReader(t *testing.T, reader *bufio.Reader) string {
+	t.Helper()
+
 	var response strings.Builder
 
 	statusLine, err := reader.ReadString('\n')
@@ -233,6 +238,44 @@ func TestConnectionServe_ReadTimeoutReturnsRequestTimeout(t *testing.T) {
 
 	if !strings.Contains(response, `{"error":"request_timeout","description":"the client took too long to send the request"}`) {
 		t.Fatalf("response missing request timeout body: %q", response)
+	}
+}
+
+func TestConnectionServe_KeepAliveServesTwoHTTP11RequestsOnOneConnection(t *testing.T) {
+	serverConn, clientConn := net.Pipe()
+	defer clientConn.Close()
+
+	go NewConnection(serverConn, testConfig(), testRouter()).serve()
+
+	if err := clientConn.SetDeadline(time.Now().Add(2 * time.Second)); err != nil {
+		t.Fatalf("set deadline: %v", err)
+	}
+
+	requests := "" +
+		"GET / HTTP/1.1\r\n" +
+		"Host: localhost\r\n" +
+		"\r\n" +
+		"GET / HTTP/1.1\r\n" +
+		"Host: localhost\r\n" +
+		"\r\n"
+	if _, err := clientConn.Write([]byte(requests)); err != nil {
+		t.Fatalf("write requests: %v", err)
+	}
+
+	reader := bufio.NewReader(clientConn)
+	first := readHTTPResponseFromReader(t, reader)
+	second := readHTTPResponseFromReader(t, reader)
+
+	if !strings.HasPrefix(first, "HTTP/1.1 200 OK\r\n") {
+		t.Fatalf("first response missing status line: %q", first)
+	}
+
+	if strings.Contains(first, "Connection: close\r\n") {
+		t.Fatalf("first response should keep connection open: %q", first)
+	}
+
+	if !strings.HasPrefix(second, "HTTP/1.1 200 OK\r\n") {
+		t.Fatalf("second response missing status line: %q", second)
 	}
 }
 
@@ -626,5 +669,58 @@ func TestConnectionWrite_AddsCloseHeaderWhenNotKeepingAlive(t *testing.T) {
 	response := conn.String()
 	if !strings.Contains(response, "Connection: close\r\n") {
 		t.Fatalf("expected close header: %q", response)
+	}
+}
+
+func TestShouldKeepAlive(t *testing.T) {
+	testCases := []struct {
+		name string
+		req  *http.Request
+		want bool
+	}{
+		{
+			name: "http11 defaults to keep alive",
+			req: &http.Request{
+				Version: protocol.HTTP11,
+				Headers: map[string]string{},
+			},
+			want: true,
+		},
+		{
+			name: "http11 close disables keep alive",
+			req: &http.Request{
+				Version: protocol.HTTP11,
+				Headers: map[string]string{
+					string(protocol.HeaderConnection): "close",
+				},
+			},
+			want: false,
+		},
+		{
+			name: "http10 requires opt in",
+			req: &http.Request{
+				Version: protocol.HTTP10,
+				Headers: map[string]string{
+					string(protocol.HeaderConnection): "keep-alive",
+				},
+			},
+			want: true,
+		},
+		{
+			name: "http10 without header closes",
+			req: &http.Request{
+				Version: protocol.HTTP10,
+				Headers: map[string]string{},
+			},
+			want: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := shouldKeepAlive(tc.req); got != tc.want {
+				t.Fatalf("got %t, want %t", got, tc.want)
+			}
+		})
 	}
 }

@@ -51,6 +51,7 @@ type Config struct {
 	Timeouts TimeoutsConfig `yaml:"timeouts"`
 }
 
+// Validate checks network settings for sane listener and keep-alive limits.
 func (nc NetworkConfig) Validate() *errors.OpError {
 	if nc.Port < 1 || nc.Port > 65535 {
 		return errors.Newf(errors.ConfigLoadKind, "validate network config", "invalid server port: %d", nc.Port)
@@ -60,6 +61,7 @@ func (nc NetworkConfig) Validate() *errors.OpError {
 	return nil
 }
 
+// Validate checks request lifecycle timeout settings.
 func (tc TimeoutsConfig) Validate() *errors.OpError {
 	if tc.Read <= 0 {
 		return errors.Newf(errors.ConfigLoadKind, "validate timeouts config", "invalid read timeout: %s", tc.Read)

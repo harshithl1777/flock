@@ -44,12 +44,14 @@ type RequestContext struct {
 	keepAlive bool
 }
 
+// init ensures the connection has a buffered reader before serving requests.
 func (c *Connection) init() {
 	if c.reader == nil {
 		c.reader = bufio.NewReader(c.Conn)
 	}
 }
 
+// serve processes requests on the connection until it should be closed.
 func (c *Connection) serve() {
 	c.init()
 	c.ctx.log.Debug("accept connection")
@@ -249,10 +251,12 @@ func (c *Connection) write(ctx RequestContext, r *http.Response, err *errors.OpE
 	return nil
 }
 
+// increment records that one request/response cycle has completed.
 func (c *Connection) increment() {
 	c.requestsServed++
 }
 
+// setReadDeadlineForNextRequest applies the initial read timeout or keep-alive idle timeout.
 func (c *Connection) setReadDeadlineForNextRequest() {
 	now := time.Now()
 
@@ -264,6 +268,7 @@ func (c *Connection) setReadDeadlineForNextRequest() {
 	_ = c.SetReadDeadline(now.Add(c.cfg.Timeouts.Idle))
 }
 
+// clearReadDeadline removes any read deadline after a request has been fully read.
 func (c *Connection) clearReadDeadline() {
 	c.SetReadDeadline(time.Time{})
 }
@@ -279,6 +284,7 @@ func (c *Connection) newRequestContext() RequestContext {
 	}
 }
 
+// newPanicContext creates a synthetic request context for panic recovery responses.
 func (c *Connection) newPanicContext() RequestContext {
 	ts := time.Now()
 	var panicId uint64 = math.MaxUint64
@@ -303,6 +309,7 @@ func NewConnection(netConn net.Conn, cfg *config.Config, router *router.Router) 
 	}
 }
 
+// shouldKeepAlive determines whether the parsed request allows another request on the same connection.
 func shouldKeepAlive(req *http.Request) bool {
 	connectionValue := req.Headers[string(protocol.HeaderConnection)]
 
@@ -318,7 +325,7 @@ func shouldKeepAlive(req *http.Request) bool {
 	}
 }
 
-// newConnectionContext allocates per-request logging and timing metadata.
+// newConnectionContext allocates per-connection logging and timing metadata.
 func newConnectionContext() ConnectionContext {
 	ts := time.Now()
 	connId := newConnectionId()
@@ -331,7 +338,7 @@ func newConnectionContext() ConnectionContext {
 
 var connectionSequence atomic.Uint64
 
-// newRequestId returns a monotonically increasing request identifier with a time prefix.
+// newConnectionId returns a monotonically increasing connection identifier.
 func newConnectionId() uint64 {
 	n := connectionSequence.Add(1)
 	return n
@@ -339,7 +346,7 @@ func newConnectionId() uint64 {
 
 var requestSequence atomic.Uint64
 
-// newRequestId returns a monotonically increasing request identifier with a time prefix.
+// newRequestId returns a monotonically increasing request identifier.
 func newRequestId() uint64 {
 	n := requestSequence.Add(1)
 	return n
